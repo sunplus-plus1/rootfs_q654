@@ -268,12 +268,14 @@ elif [ "${ROOTFS_CONTENT:0:6}" = "UBUNTU" ]; then
 		DISTRIB_RELEASE=$(grep '^DISTRIB_RELEASE=' "${DISKOUT}/etc/lsb-release" | awk -F '=' '{print $2}')
 		rootfs_prebuilt_dir=$(realpath ubuntu/prebuilt-app-$DISTRIB_RELEASE)
 		gstreamer_prebuilt_dir=${rootfs_prebuilt_dir}/gstreamer-1.22.9
-		ffmpeg_prebuilt_dir=${rootfs_prebuilt_dir}/ffmpeg-4.4.4
+		ffmpeg_prebuilt_dir=${rootfs_prebuilt_dir}/ffmpeg
 		if [ -d "${gstreamer_prebuilt_dir}" ]; then
 			find ${gstreamer_prebuilt_dir}/ -maxdepth 1 ! -name 'README.md' ! -path ${gstreamer_prebuilt_dir}/ -exec cp -av {} "$DISKOUT" \;
 		fi
-		if [ -d "${ffmpeg_prebuilt_dir}" ]; then
-			find ${ffmpeg_prebuilt_dir}/ -maxdepth 1 ! -name 'README.md' ! -path ${ffmpeg_prebuilt_dir}/ -exec cp -av {} "$DISKOUT" \;
+		if [ -d "${ffmpeg_prebuilt_dir}-6.1" ]; then
+			find ${ffmpeg_prebuilt_dir}-6.1/ -maxdepth 1 ! -name 'README.md' ! -path ${ffmpeg_prebuilt_dir}-6.1/ -exec cp -av {} "$DISKOUT" \;
+		elif [ -d "${ffmpeg_prebuilt_dir}-4.4.4" ]; then
+			find ${ffmpeg_prebuilt_dir}-4.4.4/ -maxdepth 1 ! -name 'README.md' ! -path ${ffmpeg_prebuilt_dir}-4.4.4/ -exec cp -av {} "$DISKOUT" \;
 		fi
 	fi
 
