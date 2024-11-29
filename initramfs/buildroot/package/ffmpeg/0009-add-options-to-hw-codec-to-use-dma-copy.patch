@@ -1,6 +1,6 @@
 diff -uNr ffmpeg-4.4.4.a/libavcodec/v4l2_buffers.c ffmpeg-4.4.4.b/libavcodec/v4l2_buffers.c
 --- ffmpeg-4.4.4.a/libavcodec/v4l2_buffers.c	2023-04-02 23:21:32.000000000 +0800
-+++ ffmpeg-4.4.4.b/libavcodec/v4l2_buffers.c	2024-11-28 17:40:46.895661696 +0800
++++ ffmpeg-4.4.4.b/libavcodec/v4l2_buffers.c	2024-11-29 17:45:56.617276320 +0800
 @@ -34,6 +34,13 @@
  #include "v4l2_buffers.h"
  #include "v4l2_m2m.h"
@@ -15,7 +15,7 @@ diff -uNr ffmpeg-4.4.4.a/libavcodec/v4l2_buffers.c ffmpeg-4.4.4.b/libavcodec/v4l
  #define USEC_PER_SEC 1000000
  static AVRational v4l2_timebase = { 1, USEC_PER_SEC };
  
-@@ -297,6 +304,64 @@
+@@ -297,6 +304,78 @@
      return 0;
  }
  
@@ -23,8 +23,8 @@ diff -uNr ffmpeg-4.4.4.a/libavcodec/v4l2_buffers.c ffmpeg-4.4.4.b/libavcodec/v4l
 +{
 +    unsigned int length;
 +    int *data_ptr;
-+    V4L2Context *context = out->context;
-+    V4L2m2mPriv *priv = context->priv;
++    V4L2Context *ctx = out->context;
++    V4L2m2mPriv *priv = ctx->priv;
 +    struct buff_data* buf_descriptor = input_opaque;
 +    
 +    struct v4l2_exportbuffer expbuf = {
@@ -46,14 +46,28 @@ diff -uNr ffmpeg-4.4.4.a/libavcodec/v4l2_buffers.c ffmpeg-4.4.4.b/libavcodec/v4l
 +    if(out->buf.type != V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)
 +        return -1;
 +    
++    if(ctx->exp_fd[VIDEO_MAX_FRAME] == 0){
++        struct v4l2_capability cap;
++        ioctl(buf_descriptor->v4l2_fd, VIDIOC_QUERYCAP, &cap);
++
++        ctx->exp_fd[VIDEO_MAX_FRAME] = strcmp("sp_vin", cap.driver) ? -1 : 1;
++
++        if(ctx->exp_fd[VIDEO_MAX_FRAME] == -1){
++            av_log(logger(out), AV_LOG_WARNING, "DMA copy not support for %s\n", cap.driver);
++        }
++    }
++
++    if(ctx->exp_fd[VIDEO_MAX_FRAME] == -1)
++        return -1;
++
 +    /* get the export fd of the dma buffer, release them when the video codec driver close */
-+    if(!out->exp_fd[buf_descriptor->index]){
++    if(!ctx->exp_fd[buf_descriptor->index]){
 +        expbuf.index = buf_descriptor->index;
 +        if (ioctl(buf_descriptor->v4l2_fd, VIDIOC_EXPBUF, &expbuf) < 0) {
-+            printf("expbuf failed!\n");
++            av_log(logger(out), AV_LOG_ERROR, "expbuf failed\n");
 +            return -1;
 +        }
-+        out->exp_fd[buf_descriptor->index] = expbuf.fd;
++        ctx->exp_fd[buf_descriptor->index] = expbuf.fd;
 +    }
 +
 +    length = out->plane_info[0].length;
@@ -62,7 +76,7 @@ diff -uNr ffmpeg-4.4.4.a/libavcodec/v4l2_buffers.c ffmpeg-4.4.4.b/libavcodec/v4l
 +
 +    data_ptr = (int*)&parm.parm.raw_data[100];
 +    data_ptr[0] = buf_descriptor->index; //src buf idx
-+    data_ptr[1] = out->exp_fd[buf_descriptor->index]; //src buf fd
++    data_ptr[1] = ctx->exp_fd[buf_descriptor->index]; //src buf fd
 +    data_ptr[2] = out->buf.index;  //dst buf idx
 +    data_ptr[3] = FFMIN(size, length-offset); //size
 +
@@ -70,7 +84,7 @@ diff -uNr ffmpeg-4.4.4.a/libavcodec/v4l2_buffers.c ffmpeg-4.4.4.b/libavcodec/v4l
 +
 +    /* let kernel to do dma copy */
 +    if (ioctl(priv->context->fd, VIDIOC_S_PARM, &parm) < 0){
-+        printf("dma copy failed, use memcpy!\n");
++        av_log(logger(out), AV_LOG_ERROR, "DMA copy failed, use memcpy!\n");
 +        return -1;
 +    }
 +
@@ -80,7 +94,7 @@ diff -uNr ffmpeg-4.4.4.a/libavcodec/v4l2_buffers.c ffmpeg-4.4.4.b/libavcodec/v4l
  static int v4l2_buffer_buf_to_swframe(AVFrame *frame, V4L2Buffer *avbuf)
  {
      int i, ret;
-@@ -386,7 +451,12 @@
+@@ -386,7 +465,12 @@
                  h = AV_CEIL_RSHIFT(h, desc->log2_chroma_h);
              }
              size = frame->linesize[i] * h;
@@ -94,28 +108,18 @@ diff -uNr ffmpeg-4.4.4.a/libavcodec/v4l2_buffers.c ffmpeg-4.4.4.b/libavcodec/v4l
              if (ret)
                  return ret;
              offset += size;
-diff -uNr ffmpeg-4.4.4.a/libavcodec/v4l2_buffers.h ffmpeg-4.4.4.b/libavcodec/v4l2_buffers.h
---- ffmpeg-4.4.4.a/libavcodec/v4l2_buffers.h	2023-04-13 02:01:50.000000000 +0800
-+++ ffmpeg-4.4.4.b/libavcodec/v4l2_buffers.h	2024-11-28 17:40:56.366605319 +0800
-@@ -63,6 +63,9 @@
-     int flags;
-     enum V4L2Buffer_status status;
- 
-+    /* export fd if the input is from v4l2 buffer */ 
-+    int exp_fd[VIDEO_MAX_FRAME];
-+
- } V4L2Buffer;
- 
- /**
 diff -uNr ffmpeg-4.4.4.a/libavcodec/v4l2_context.h ffmpeg-4.4.4.b/libavcodec/v4l2_context.h
 --- ffmpeg-4.4.4.a/libavcodec/v4l2_context.h	2023-04-13 02:01:50.000000000 +0800
-+++ ffmpeg-4.4.4.b/libavcodec/v4l2_context.h	2024-11-28 17:41:03.900409494 +0800
-@@ -92,6 +92,9 @@
++++ ffmpeg-4.4.4.b/libavcodec/v4l2_context.h	2024-11-29 17:46:05.316049662 +0800
+@@ -92,6 +92,12 @@
       */
      int done;
  
 +    /* reference back to V4L2m2mPriv */
 +    void *priv;
++
++    /* export fd if the input is from v4l2 buffer */ 
++    int exp_fd[VIDEO_MAX_FRAME+1];
 +
  } V4L2Context;
  
@@ -133,7 +137,7 @@ diff -uNr ffmpeg-4.4.4.a/libavcodec/v4l2_m2m.h ffmpeg-4.4.4.b/libavcodec/v4l2_m2
  /**
 diff -uNr ffmpeg-4.4.4.a/libavcodec/v4l2_m2m_enc.c ffmpeg-4.4.4.b/libavcodec/v4l2_m2m_enc.c
 --- ffmpeg-4.4.4.a/libavcodec/v4l2_m2m_enc.c	2024-11-28 17:37:57.849410513 +0800
-+++ ffmpeg-4.4.4.b/libavcodec/v4l2_m2m_enc.c	2024-11-28 17:41:27.106533916 +0800
++++ ffmpeg-4.4.4.b/libavcodec/v4l2_m2m_enc.c	2024-11-29 17:43:22.749775791 +0800
 @@ -320,6 +320,7 @@
      }
  #endif
@@ -194,7 +198,7 @@ diff -uNr ffmpeg-4.4.4.a/libavcodec/v4l2_m2m_enc.c ffmpeg-4.4.4.b/libavcodec/v4l
      { "spspps_to_idr", "Add spspps to each key frame", \
  	OFFSET(spspps_to_idr), AV_OPT_TYPE_BOOL, {.i64 = 0 }, 0, 1, FLAGS },
 +    { "use_dma_copy", "Only usr for video buffer is from DMA", \
-+	OFFSET(use_dma_copy), AV_OPT_TYPE_BOOL, {.i64 = 0 }, 0, 1, FLAGS },
++	OFFSET(use_dma_copy), AV_OPT_TYPE_BOOL, {.i64 = 1 }, 0, 1, FLAGS },
      { NULL },
  };
  
