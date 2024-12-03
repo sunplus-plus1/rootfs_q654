@@ -1,0 +1,344 @@
+diff -uNr gst-plugins-good-1.22.9.a/sys/v4l2/gstv4l2bufferpool.c gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2bufferpool.c
+--- gst-plugins-good-1.22.9.a/sys/v4l2/gstv4l2bufferpool.c	2024-01-25 02:21:13.000000000 +0800
++++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2bufferpool.c	2024-12-03 18:43:59.066519387 +0800
+@@ -134,6 +134,91 @@
+   }
+ }
+ 
++static gboolean
++gst_v4l2_buffer_pool_copy_buffer_dma (GstV4l2BufferPool * pool, GstBuffer * dest,
++    GstBuffer * src)
++{
++  gboolean ret = FALSE;
++  GstV4l2Object *obj = pool->obj;
++  const GstV4L2BufferPoolMeta*  smeta;
++  const GstV4L2BufferPoolMeta*  dmeta;
++  const GstVideoFormatInfo *finfo;
++
++  g_return_val_if_fail (dest != NULL, FALSE);
++  g_return_val_if_fail (src != NULL, FALSE);
++
++  if(!obj->use_dma_copy)
++    return FALSE;
++
++  if(!V4L2_TYPE_IS_OUTPUT(obj->type))
++    return FALSE;
++
++  if(!(smeta =  gst_v4l2_buffer_pool_get_meta(src))
++        || !(dmeta =  gst_v4l2_buffer_pool_get_meta(dest)))
++  {
++    goto out;
++  }
++
++  if(obj->exp_fd[VIDEO_MAX_FRAME] == 0){
++    struct v4l2_capability cap;
++    obj->ioctl(smeta->video_fd, VIDIOC_QUERYCAP, &cap);
++
++    obj->exp_fd[VIDEO_MAX_FRAME] = strcmp("sp_vin", cap.driver) ? -1 : 1;
++
++    if(obj->exp_fd[VIDEO_MAX_FRAME] == -1){
++      GST_ERROR_OBJECT (pool,  "DMA copy not support for %s", cap.driver);
++      goto out;
++    }
++//    gst_print("#########Use dma copy\n");
++  }
++
++  if(obj->exp_fd[VIDEO_MAX_FRAME] == -1)
++    goto out;
++
++  /* get the export fd of the dma buffer, release them when the video codec driver close */
++  if(!obj->exp_fd[smeta->buf_idx]){
++    struct v4l2_exportbuffer expbuf = {
++        .type = V4L2_BUF_TYPE_VIDEO_CAPTURE,
++        .plane = 0,
++        .index = smeta->buf_idx,
++        // .flags = O_CLOEXEC,
++    };
++    if (obj->ioctl(smeta->video_fd, VIDIOC_EXPBUF, &expbuf) < 0) {
++      GST_ERROR_OBJECT (pool, "expbuf failed!");
++      goto out;
++    }
++    obj->exp_fd[smeta->buf_idx] = expbuf.fd;
++  }
++
++  struct v4l2_streamparm parm = {
++    .type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE,
++  };
++
++  parm.parm.raw_data[99] = 0xf1;   //cmd, 1 bytes
++
++  int *data_ptr = (int*)&parm.parm.raw_data[100];
++  data_ptr[0] = smeta->buf_idx; //src buf idx
++  data_ptr[1] = obj->exp_fd[smeta->buf_idx]; //src buf fd
++  data_ptr[2] = dmeta->buf_idx;  //dst buf idx
++  data_ptr[3] = gst_buffer_get_size(src); //size
++
++  /* let kernel to do dma copy */
++  if (obj->ioctl(pool->video_fd, VIDIOC_S_PARM, &parm) < 0){
++    GST_ERROR_OBJECT (pool, "DMA copy failed, use memcpy!");
++    return -1;
++  }
++
++  ret = TRUE;
++out:
++  if(smeta)
++    gst_buffer_remove_meta(src, smeta);
++  if(dmeta)
++    gst_buffer_remove_meta(dest, dmeta);
++
++  return ret;
++}
++
++
+ static GstFlowReturn
+ gst_v4l2_buffer_pool_copy_buffer (GstV4l2BufferPool * pool, GstBuffer * dest,
+     GstBuffer * src)
+@@ -158,7 +243,8 @@
+       goto invalid_buffer;
+     }
+ 
+-    gst_video_frame_copy (&dest_frame, &src_frame);
++    if(!gst_v4l2_buffer_pool_copy_buffer_dma(pool, dest, src))
++      gst_video_frame_copy (&dest_frame, &src_frame);
+ 
+     gst_video_frame_unmap (&src_frame);
+     gst_video_frame_unmap (&dest_frame);
+@@ -1321,6 +1407,15 @@
+       gst_memory_resize (group->mem[i], 0, obj->plane_size[i]);
+   }
+ 
++  {
++    GstV4L2BufferPoolMeta *meta = (GstV4L2BufferPoolMeta *) gst_buffer_add_meta (outbuf,
++      GST_V4L2_BUFFER_POOL_META_INFO, NULL);
++    g_assert (meta != NULL);
++
++    meta->video_fd = obj->video_fd;
++    meta->buf_idx = group->buffer.index;
++  }
++
+   /* Ignore timestamp and field for OUTPUT device */
+   if (V4L2_TYPE_IS_OUTPUT (obj->type))
+     goto done;
+@@ -2315,3 +2410,59 @@
+ {
+   gst_v4l2_object_subscribe_event (pool->obj, V4L2_EVENT_SOURCE_CHANGE);
+ }
++
++static gboolean
++gst_4l2_buffer_pool_meta_init (GstMeta * meta, gpointer params, GstBuffer * buffer)
++{
++  GstV4L2BufferPoolMeta *emeta = (GstV4L2BufferPoolMeta *) meta;
++
++  emeta->video_fd = -1;
++  emeta->buf_idx = -1;
++
++  return TRUE;
++}
++
++static gboolean
++gst_4l2_buffer_pool_meta_transform (GstBuffer * dest, GstMeta * meta,
++    GstBuffer * buffer, GQuark type, gpointer data)
++{
++  GstV4L2BufferPoolMeta *smeta = (GstV4L2BufferPoolMeta *) meta;
++
++  //just reture TRUE
++
++  return TRUE;
++}
++
++GType
++gst_v4l2_buffer_pool_meta_api_get_type (void)
++{
++  static GType type = 0;
++
++  if (g_once_init_enter (&type)) {
++    static const gchar *tags[] = {
++      NULL
++    };
++    GType _type = gst_meta_api_type_register ("GstV4L2BufferPoolMetaAPI", tags);
++    g_once_init_leave (&type, _type);
++  }
++  return type;
++}
++
++const GstMetaInfo *
++gst_v4l2_buffer_pool_meta_get_info (void)
++{
++  static const GstMetaInfo *meta_info = NULL;
++
++  if (g_once_init_enter ((GstMetaInfo **) & meta_info)) {
++    const GstMetaInfo *mi = gst_meta_register (GST_V4L2_BUFFER_POOL_META_API_TYPE,
++        "GstV4L2BufferPoolMeta",
++        sizeof (GstV4L2BufferPoolMeta),
++        gst_4l2_buffer_pool_meta_init,
++        NULL,
++        gst_4l2_buffer_pool_meta_transform);
++    g_once_init_leave ((GstMetaInfo **) & meta_info, (GstMetaInfo *) mi);
++  }
++  return meta_info;
++}
++
++
+diff -uNr gst-plugins-good-1.22.9.a/sys/v4l2/gstv4l2bufferpool.h gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2bufferpool.h
+--- gst-plugins-good-1.22.9.a/sys/v4l2/gstv4l2bufferpool.h	2024-01-25 02:21:13.000000000 +0800
++++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2bufferpool.h	2024-12-03 18:43:32.503713703 +0800
+@@ -36,6 +36,24 @@
+ 
+ G_BEGIN_DECLS
+ 
++typedef struct {
++  GstMeta meta;
++
++  gint video_fd;
++  gint buf_idx;
++} GstV4L2BufferPoolMeta;
++
++GType gst_v4l2_buffer_pool_meta_api_get_type (void);
++#define GST_V4L2_BUFFER_POOL_META_API_TYPE (gst_v4l2_buffer_pool_meta_api_get_type())
++
++const GstMetaInfo *gst_v4l2_buffer_pool_meta_get_info (void);
++#define GST_V4L2_BUFFER_POOL_META_INFO (gst_v4l2_buffer_pool_meta_get_info())
++
++#define gst_v4l2_buffer_pool_get_meta(b) \
++    ((GstV4L2BufferPoolMeta*)gst_buffer_get_meta ((b), GST_V4L2_BUFFER_POOL_META_API_TYPE))
++
++/////////////////////
++
+ #define GST_TYPE_V4L2_BUFFER_POOL      (gst_v4l2_buffer_pool_get_type())
+ #define GST_IS_V4L2_BUFFER_POOL(obj)   (G_TYPE_CHECK_INSTANCE_TYPE ((obj), GST_TYPE_V4L2_BUFFER_POOL))
+ #define GST_V4L2_BUFFER_POOL(obj)      (G_TYPE_CHECK_INSTANCE_CAST ((obj), GST_TYPE_V4L2_BUFFER_POOL, GstV4l2BufferPool))
+diff -uNr gst-plugins-good-1.22.9.a/sys/v4l2/gstv4l2object.c gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2object.c
+--- gst-plugins-good-1.22.9.a/sys/v4l2/gstv4l2object.c	2024-12-03 18:40:05.382647930 +0800
++++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2object.c	2024-12-03 18:42:09.423365842 +0800
+@@ -524,7 +524,7 @@
+   v4l2object->n_v4l2_planes = 0;
+ 
+   v4l2object->no_initial_format = FALSE;
+-  
++
+   v4l2object->extern_buffer = FALSE;
+ 
+   v4l2object->poll = gst_poll_new (TRUE);
+@@ -724,6 +724,9 @@
+     case PROP_FORCE_ASPECT_RATIO:
+       v4l2object->keep_aspect = g_value_get_boolean (value);
+       break;
++    case PROP_USE_DMA_COPY:
++      v4l2object->use_dma_copy = g_value_get_boolean (value);
++      break;
+     default:
+       return FALSE;
+       break;
+@@ -929,6 +932,11 @@
+   else
+     return FALSE;
+ 
++  if(v4l2object->type == V4L2_BUF_TYPE_VIDEO_CAPTURE){
++    if(strcmp("sp_vin", v4l2object->vcap.driver) == 0)
++      v4l2object->req_mode = GST_V4L2_IO_MMAP;
++  }
++
+   gst_v4l2_object_init_poll (v4l2object);
+ 
+   return TRUE;
+@@ -3818,7 +3826,7 @@
+   g_usleep(50*1000);
+ 
+   /*Fix for YUV align*/
+-  if( v4l2object->type == V4L2_BUF_TYPE_VIDEO_OUTPUT 
++  if( v4l2object->type == V4L2_BUF_TYPE_VIDEO_OUTPUT
+   	&& !GST_VIDEO_INFO_IS_YUV (&info)){
+   	width = GST_ROUND_UP_16 (width);
+     height = GST_ROUND_UP_16 (height);
+@@ -3841,7 +3849,7 @@
+         stride = GST_VIDEO_TILE_X_TILES (stride) *
+             GST_VIDEO_FORMAT_INFO_TILE_STRIDE (info.finfo, i);
+ 
+-      format.fmt.pix_mp.plane_fmt[i].bytesperline = stride;
++//      format.fmt.pix_mp.plane_fmt[i].bytesperline = stride;
+     }
+ 
+     if (GST_VIDEO_INFO_FORMAT (&info) == GST_VIDEO_FORMAT_ENCODED)
+@@ -5397,7 +5405,7 @@
+ 	  /*[Wang.Zhou]Fixed rtsp failed*/
+           if(V4L2_TYPE_IS_OUTPUT(obj->type) && gst_buffer_pool_is_active (obj_pool))
+               gst_buffer_pool_set_active(obj_pool, FALSE);
+-          
++
+           if (!gst_buffer_pool_is_active (obj_pool))
+             pool = gst_object_ref (obj_pool);
+ 
+diff -uNr gst-plugins-good-1.22.9.a/sys/v4l2/gstv4l2object.h gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2object.h
+--- gst-plugins-good-1.22.9.a/sys/v4l2/gstv4l2object.h	2024-12-03 18:40:05.382647930 +0800
++++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2object.h	2024-12-03 18:41:27.277567486 +0800
+@@ -229,6 +229,10 @@
+    * on slow USB firmwares. When this is set, gst_v4l2_set_format() will modify
+    * the caps to reflect what was negotiated during fixation */
+   gboolean skip_try_fmt_probes;
++
++  /* export fd if the input is from v4l2 buffer */
++  gboolean use_dma_copy;
++  int exp_fd[VIDEO_MAX_FRAME+1];
+ };
+ 
+ struct _GstV4l2ObjectClassHelper {
+@@ -253,7 +257,8 @@
+     PROP_CAPTURE_IO_MODE,     \
+     PROP_EXTRA_CONTROLS,      \
+     PROP_PIXEL_ASPECT_RATIO,  \
+-    PROP_FORCE_ASPECT_RATIO
++    PROP_FORCE_ASPECT_RATIO,  \
++    PROP_USE_DMA_COPY
+ 
+ /* create/destroy */
+ GstV4l2Object*  gst_v4l2_object_new       (GstElement * element,
+diff -uNr gst-plugins-good-1.22.9.a/sys/v4l2/gstv4l2videoenc.c gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2videoenc.c
+--- gst-plugins-good-1.22.9.a/sys/v4l2/gstv4l2videoenc.c	2024-12-03 18:40:09.734634318 +0800
++++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2videoenc.c	2024-12-03 18:47:51.546944387 +0800
+@@ -614,7 +614,7 @@
+ 
+   state = gst_video_encoder_get_output_state (encoder);
+   s = gst_caps_get_structure (state->caps, 0);
+-  gst_video_codec_state_unref(state);  
++  gst_video_codec_state_unref(state);
+ 
+   if (codec->profile_cid)
+     gst_structure_set (s, "profile", G_TYPE_STRING, ctx.profile, NULL);
+@@ -730,14 +730,14 @@
+ 	}
+ 
+     do{
+-	  frames = gst_video_encoder_get_frames(encoder);	
++	  frames = gst_video_encoder_get_frames(encoder);
+ 	  if(!frames && do_sleep)
+ 	  	g_usleep(do_sleep);
+     }while(!frames && try_cnt--);
+ 
+ 	if(frames){
+ 	  GstVideoCodecFrame *head = frames->data;
+-	  self->frame_num = head->system_frame_number;	  
++	  self->frame_num = head->system_frame_number;
+ 
+ 	  g_list_foreach (frames, (GFunc) gst_video_codec_frame_unref, NULL);
+ 	  g_list_free (frames);
+@@ -1177,6 +1177,7 @@
+       gst_v4l2_get_output, gst_v4l2_set_output, NULL);
+   self->v4l2output->no_initial_format = TRUE;
+   self->v4l2output->keep_aspect = FALSE;
++  self->v4l2output->use_dma_copy = TRUE;
+ 
+   self->v4l2capture = gst_v4l2_object_new (GST_ELEMENT (self),
+       GST_OBJECT (GST_VIDEO_ENCODER_SRC_PAD (self)),
+@@ -1236,6 +1237,12 @@
+   element_class->change_state =
+       GST_DEBUG_FUNCPTR (gst_v4l2_video_enc_change_state);
+ 
++  g_object_class_install_property (gobject_class, PROP_USE_DMA_COPY,
++    g_param_spec_boolean ("use-dma-copy", "Use DMA copy",
++        "Use dma copy when input buffer from DMA, only for encode",
++        TRUE,
++        G_PARAM_WRITABLE | G_PARAM_STATIC_STRINGS));
++
+   gst_v4l2_object_install_m2m_properties_helper (gobject_class);
+ }
+ 
