@@ -1,6 +1,6 @@
 diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2allocator.c gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2allocator.c
 --- gst-plugins-good-1.22.9/sys/v4l2/gstv4l2allocator.c	2024-01-25 02:21:13.000000000 +0800
-+++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2allocator.c	2024-12-03 18:27:56.140928676 +0800
++++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2allocator.c	2024-12-04 17:24:16.686653316 +0800
 @@ -486,7 +486,7 @@
    guint32 flags = 0;
  
@@ -12,7 +12,7 @@ diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2allocator.c gst-plugins-good-1
    if (obj->ioctl (obj->video_fd, VIDIOC_REQBUFS, &breq) == 0) {
 diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2h264enc.c gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2h264enc.c
 --- gst-plugins-good-1.22.9/sys/v4l2/gstv4l2h264enc.c	2024-01-25 02:21:13.000000000 +0800
-+++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2h264enc.c	2024-12-03 18:31:12.425310359 +0800
++++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2h264enc.c	2024-12-04 17:24:16.690653303 +0800
 @@ -39,6 +39,8 @@
  GST_DEBUG_CATEGORY_STATIC (gst_v4l2_h264_enc_debug);
  #define GST_CAT_DEFAULT gst_v4l2_h264_enc_debug
@@ -635,7 +635,7 @@ diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2h264enc.c gst-plugins-good-1.2
  gst_v4l2_is_h264_enc (GstCaps * sink_caps, GstCaps * src_caps)
 diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2h264enc.h gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2h264enc.h
 --- gst-plugins-good-1.22.9/sys/v4l2/gstv4l2h264enc.h	2024-01-25 02:21:13.000000000 +0800
-+++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2h264enc.h	2024-12-03 18:28:13.163287634 +0800
++++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2h264enc.h	2024-12-04 17:24:16.690653303 +0800
 @@ -42,6 +42,41 @@
  struct _GstV4l2H264Enc
  {
@@ -680,7 +680,7 @@ diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2h264enc.h gst-plugins-good-1.2
  struct _GstV4l2H264EncClass
 diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2jpegenc.c gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2jpegenc.c
 --- gst-plugins-good-1.22.9/sys/v4l2/gstv4l2jpegenc.c	2024-01-25 02:21:13.000000000 +0800
-+++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2jpegenc.c	2024-12-03 18:27:56.144928663 +0800
++++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2jpegenc.c	2024-12-04 17:24:16.690653303 +0800
 @@ -40,15 +40,26 @@
  GST_DEBUG_CATEGORY_STATIC (gst_v4l2_jpeg_enc_debug);
  #define GST_CAT_DEFAULT gst_v4l2_jpeg_enc_debug
@@ -820,7 +820,7 @@ diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2jpegenc.c gst-plugins-good-1.2
  gst_v4l2_is_jpeg_enc (GstCaps * sink_caps, GstCaps * src_caps)
 diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2jpegenc.h gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2jpegenc.h
 --- gst-plugins-good-1.22.9/sys/v4l2/gstv4l2jpegenc.h	2024-01-25 02:21:13.000000000 +0800
-+++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2jpegenc.h	2024-12-03 18:27:56.144928663 +0800
++++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2jpegenc.h	2024-12-04 17:24:16.690653303 +0800
 @@ -42,6 +42,8 @@
  struct _GstV4l2JPEGEnc
  {
@@ -832,7 +832,7 @@ diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2jpegenc.h gst-plugins-good-1.2
  struct _GstV4l2JPEGEncClass
 diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2object.c gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2object.c
 --- gst-plugins-good-1.22.9/sys/v4l2/gstv4l2object.c	2024-01-25 02:21:13.000000000 +0800
-+++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2object.c	2024-12-03 18:27:56.144928663 +0800
++++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2object.c	2024-12-04 17:24:16.690653303 +0800
 @@ -3800,6 +3800,20 @@
    memset (&format, 0x00, sizeof (struct v4l2_format));
    format.type = v4l2object->type;
@@ -856,7 +856,7 @@ diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2object.c gst-plugins-good-1.22
      format.fmt.pix_mp.pixelformat = pixelformat;
 diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2videodec.c gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2videodec.c
 --- gst-plugins-good-1.22.9/sys/v4l2/gstv4l2videodec.c	2024-01-25 02:21:13.000000000 +0800
-+++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2videodec.c	2024-12-03 18:27:56.144928663 +0800
++++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2videodec.c	2024-12-04 17:26:02.806321412 +0800
 @@ -715,9 +715,12 @@
  gst_v4l2_video_dec_loop (GstVideoDecoder * decoder)
  {
@@ -865,16 +865,18 @@ diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2videodec.c gst-plugins-good-1.
    GstBufferPool *pool;
    GstVideoCodecFrame *frame;
    GstBuffer *buffer = NULL;
-+  GstVideoInfo *vinfo = &self->v4l2capture->info;;
++  GstVideoInfo *vinfo = &self->v4l2output->info;
 +  GstMapInfo info;
    GstFlowReturn ret;
  
    GST_LOG_OBJECT (self, "Looping.");
-@@ -843,7 +846,17 @@
+@@ -843,7 +846,19 @@
      if (oldest_frame)
        gst_video_codec_frame_unref (oldest_frame);
  
 -    frame->duration = self->v4l2capture->duration;
++	frame->duration = self->v4l2capture->duration;
++
 +	/*resize buffer to roi size*/
 +	gint w_aligin = GST_ROUND_UP_16 (vinfo->width);
 +	gint h_aligin = GST_ROUND_UP_16 (vinfo->height);
@@ -891,7 +893,7 @@ diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2videodec.c gst-plugins-good-1.
      ret = gst_video_decoder_finish_frame (decoder, frame);
 diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2videoenc.c gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2videoenc.c
 --- gst-plugins-good-1.22.9/sys/v4l2/gstv4l2videoenc.c	2024-01-25 02:21:13.000000000 +0800
-+++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2videoenc.c	2024-12-03 18:27:56.144928663 +0800
++++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2videoenc.c	2024-12-04 17:24:16.694653290 +0800
 @@ -30,6 +30,7 @@
  #include <errno.h>
  #include <unistd.h>
@@ -983,7 +985,7 @@ diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2videoenc.c gst-plugins-good-1.
  static void
 diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2videoenc.h gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2videoenc.h
 --- gst-plugins-good-1.22.9/sys/v4l2/gstv4l2videoenc.h	2024-01-25 02:21:13.000000000 +0800
-+++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2videoenc.h	2024-12-03 18:27:56.144928663 +0800
++++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2videoenc.h	2024-12-04 17:24:16.694653290 +0800
 @@ -66,6 +66,9 @@
    gboolean processing;
    GstFlowReturn output_flow;
