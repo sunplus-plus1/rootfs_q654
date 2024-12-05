@@ -1,6 +1,6 @@
-diff -uNr ffmpeg-4.4.4.a/libavcodec/allcodecs.c ffmpeg-4.4.4.b/libavcodec/allcodecs.c
---- ffmpeg-4.4.4.a/libavcodec/allcodecs.c	2024-10-14 10:30:06.593849901 +0800
-+++ ffmpeg-4.4.4.b/libavcodec/allcodecs.c	2024-10-15 11:34:27.097360082 +0800
+diff -uNr ffmpeg-4.4.4/libavcodec/allcodecs.c ffmpeg-4.4.4.b/libavcodec/allcodecs.c
+--- ffmpeg-4.4.4/libavcodec/allcodecs.c	2024-12-05 14:04:50.629857069 +0800
++++ ffmpeg-4.4.4.b/libavcodec/allcodecs.c	2024-12-05 14:11:33.183680599 +0800
 @@ -850,6 +850,7 @@
  #endif
  
@@ -9,32 +9,31 @@ diff -uNr ffmpeg-4.4.4.a/libavcodec/allcodecs.c ffmpeg-4.4.4.b/libavcodec/allcod
  static void av_codec_init_static(void)
  {
      for (int i = 0; codec_list[i]; i++) {
-@@ -924,6 +925,18 @@
-     const AVCodec *p, *experimental = NULL;
-     void *i = 0;
+@@ -942,6 +943,17 @@
  
-+    //Use hw codec for H264 and JPEG
+ AVCodec *avcodec_find_encoder(enum AVCodecID id)
+ {
++    const AVCodec *p = NULL;
 +    if(id == AV_CODEC_ID_H264){
-+        experimental = find_codec_by_name("h264_v4l2m2m", x);
++        p = find_codec_by_name("h264_v4l2m2m", av_codec_is_encoder);
 +    }
 +    else if(id == AV_CODEC_ID_MJPEG){
-+        experimental = find_codec_by_name("jpeg_v4l2m2m", x);
++        p = find_codec_by_name("jpeg_v4l2m2m", av_codec_is_encoder);
 +    }
-+    if(experimental){
-+        printf("FFMPEG: use codec %s\n", experimental->name);
-+        return (AVCodec*)experimental;
-+    } 
-+
-     id = remap_deprecated_codec_id(id);
++    if(p){
++        printf("FFMPEG: use codec %s\n", p->name);
++        return (AVCodec*)p;
++    }
+     return find_codec(id, av_codec_is_encoder);
+ }
  
-     while ((p = av_codec_iterate(&i))) {
-diff -uNr ffmpeg-4.4.4.a/libswscale/aarch64/swscale_unscaled.c ffmpeg-4.4.4.b/libswscale/aarch64/swscale_unscaled.c
---- ffmpeg-4.4.4.a/libswscale/aarch64/swscale_unscaled.c	2023-04-13 02:01:50.000000000 +0800
-+++ ffmpeg-4.4.4.b/libswscale/aarch64/swscale_unscaled.c	2024-10-23 10:59:00.856713819 +0800
+diff -uNr ffmpeg-4.4.4/libswscale/aarch64/swscale_unscaled.c ffmpeg-4.4.4.b/libswscale/aarch64/swscale_unscaled.c
+--- ffmpeg-4.4.4/libswscale/aarch64/swscale_unscaled.c	2023-04-13 02:01:50.000000000 +0800
++++ ffmpeg-4.4.4.b/libswscale/aarch64/swscale_unscaled.c	2024-12-05 14:05:47.421679453 +0800
 @@ -121,9 +121,111 @@
      SET_FF_NVX_TO_ALL_RGBX_FUNC(yuv422p, YUV422P, accurate_rnd);
  }
-
+ 
 +///////
 +#include "arm_neon.h"
 +static const uint8_t Y_SUBS[8] = { 16, 16, 16, 16, 16, 16, 16, 16 };
