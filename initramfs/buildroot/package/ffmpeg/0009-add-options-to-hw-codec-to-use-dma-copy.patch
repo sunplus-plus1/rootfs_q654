@@ -1,0 +1,270 @@
+diff -uNr ffmpeg-4.4.4.a/libavcodec/v4l2_buffers.c ffmpeg-4.4.4.b/libavcodec/v4l2_buffers.c
+--- ffmpeg-4.4.4.a/libavcodec/v4l2_buffers.c	2023-04-02 23:21:32.000000000 +0800
++++ ffmpeg-4.4.4.b/libavcodec/v4l2_buffers.c	2024-11-29 17:45:56.617276320 +0800
+@@ -34,6 +34,13 @@
+ #include "v4l2_buffers.h"
+ #include "v4l2_m2m.h"
+ 
++/****same with v4l2.c*****/
++struct buff_data {
++    struct video_data *s;
++    int index;
++    int v4l2_fd;
++};
++
+ #define USEC_PER_SEC 1000000
+ static AVRational v4l2_timebase = { 1, USEC_PER_SEC };
+ 
+@@ -297,6 +304,78 @@
+     return 0;
+ }
+ 
++static int v4l2_bufref_to_buf_dma(V4L2Buffer *out, void* input_opaque, int size, int offset)
++{
++    unsigned int length;
++    int *data_ptr;
++    V4L2Context *ctx = out->context;
++    V4L2m2mPriv *priv = ctx->priv;
++    struct buff_data* buf_descriptor = input_opaque;
++    
++    struct v4l2_exportbuffer expbuf = {
++        .type = V4L2_BUF_TYPE_VIDEO_CAPTURE,
++        .plane = 0,
++        // .flags = O_CLOEXEC,
++    };
++    
++    struct v4l2_streamparm parm = {
++        .type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE,
++	};
++
++    if(!priv || !priv->use_dma_copy)
++        return -1;
++   
++    if(!buf_descriptor || !buf_descriptor->v4l2_fd)
++        return -1;
++
++    if(out->buf.type != V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)
++        return -1;
++    
++    if(ctx->exp_fd[VIDEO_MAX_FRAME] == 0){
++        struct v4l2_capability cap;
++        ioctl(buf_descriptor->v4l2_fd, VIDIOC_QUERYCAP, &cap);
++
++        ctx->exp_fd[VIDEO_MAX_FRAME] = strcmp("sp_vin", cap.driver) ? -1 : 1;
++
++        if(ctx->exp_fd[VIDEO_MAX_FRAME] == -1){
++            av_log(logger(out), AV_LOG_WARNING, "DMA copy not support for %s\n", cap.driver);
++        }
++    }
++
++    if(ctx->exp_fd[VIDEO_MAX_FRAME] == -1)
++        return -1;
++
++    /* get the export fd of the dma buffer, release them when the video codec driver close */
++    if(!ctx->exp_fd[buf_descriptor->index]){
++        expbuf.index = buf_descriptor->index;
++        if (ioctl(buf_descriptor->v4l2_fd, VIDIOC_EXPBUF, &expbuf) < 0) {
++            av_log(logger(out), AV_LOG_ERROR, "expbuf failed\n");
++            return -1;
++        }
++        ctx->exp_fd[buf_descriptor->index] = expbuf.fd;
++    }
++
++    length = out->plane_info[0].length;
++
++    parm.parm.raw_data[99] = 0xf1;   //cmd, 1 bytes
++
++    data_ptr = (int*)&parm.parm.raw_data[100];
++    data_ptr[0] = buf_descriptor->index; //src buf idx
++    data_ptr[1] = ctx->exp_fd[buf_descriptor->index]; //src buf fd
++    data_ptr[2] = out->buf.index;  //dst buf idx
++    data_ptr[3] = FFMIN(size, length-offset); //size
++
++    // printf("u %d %d\n", out->exp_fd[buf_descriptor->index], out->buf.index);
++
++    /* let kernel to do dma copy */
++    if (ioctl(priv->context->fd, VIDIOC_S_PARM, &parm) < 0){
++        av_log(logger(out), AV_LOG_ERROR, "DMA copy failed, use memcpy!\n");
++        return -1;
++    }
++
++    return 0;
++}
++
+ static int v4l2_buffer_buf_to_swframe(AVFrame *frame, V4L2Buffer *avbuf)
+ {
+     int i, ret;
+@@ -386,7 +465,12 @@
+                 h = AV_CEIL_RSHIFT(h, desc->log2_chroma_h);
+             }
+             size = frame->linesize[i] * h;
+-            ret = v4l2_bufref_to_buf(out, 0, frame->data[i], size, offset);
++
++            /* use dma copy if the input v4l2 dma, such as sensor */
++            if(ret = v4l2_bufref_to_buf_dma(out, av_buffer_pool_buffer_get_buffer_opaque(frame->buf[i]), size, offset)){
++                ret = v4l2_bufref_to_buf(out, 0, frame->data[i], size, offset);
++            }
++
+             if (ret)
+                 return ret;
+             offset += size;
+diff -uNr ffmpeg-4.4.4.a/libavcodec/v4l2_context.h ffmpeg-4.4.4.b/libavcodec/v4l2_context.h
+--- ffmpeg-4.4.4.a/libavcodec/v4l2_context.h	2023-04-13 02:01:50.000000000 +0800
++++ ffmpeg-4.4.4.b/libavcodec/v4l2_context.h	2024-11-29 17:46:05.316049662 +0800
+@@ -92,6 +92,12 @@
+      */
+     int done;
+ 
++    /* reference back to V4L2m2mPriv */
++    void *priv;
++
++    /* export fd if the input is from v4l2 buffer */ 
++    int exp_fd[VIDEO_MAX_FRAME+1];
++
+ } V4L2Context;
+ 
+ /**
+diff -uNr ffmpeg-4.4.4.a/libavcodec/v4l2_m2m.h ffmpeg-4.4.4.b/libavcodec/v4l2_m2m.h
+--- ffmpeg-4.4.4.a/libavcodec/v4l2_m2m.h	2024-11-28 17:37:57.849410513 +0800
++++ ffmpeg-4.4.4.b/libavcodec/v4l2_m2m.h	2024-11-28 17:41:11.234212456 +0800
+@@ -78,6 +78,7 @@
+     int num_capture_buffers;
+ 
+     int spspps_to_idr;
++    int use_dma_copy;
+ } V4L2m2mPriv;
+ 
+ /**
+diff -uNr ffmpeg-4.4.4.a/libavcodec/v4l2_m2m_enc.c ffmpeg-4.4.4.b/libavcodec/v4l2_m2m_enc.c
+--- ffmpeg-4.4.4.a/libavcodec/v4l2_m2m_enc.c	2024-11-28 17:37:57.849410513 +0800
++++ ffmpeg-4.4.4.b/libavcodec/v4l2_m2m_enc.c	2024-11-29 17:43:22.749775791 +0800
+@@ -320,6 +320,7 @@
+     }
+ #endif
+ 
++    s->output.priv = avctx->priv_data;
+     return ff_v4l2_context_enqueue_frame(output, frame);
+ }
+ 
+@@ -370,27 +371,27 @@
+ dequeue:
+     ret = ff_v4l2_context_dequeue_packet(capture, avpkt);
+     if(!avctx->extradata){  //Save spspps to extra data
+-	avctx->extradata = (uint8_t*)malloc(avpkt->size);
+-	avctx->extradata_size = avpkt->size;
+-	memcpy(avctx->extradata, avpkt->data, avpkt->size);
++        avctx->extradata = (uint8_t*)malloc(avpkt->size);
++        avctx->extradata_size = avpkt->size;
++        memcpy(avctx->extradata, avpkt->data, avpkt->size);
+     }
+     if(priv->spspps_to_idr){
+-	if(avpkt->flags & AV_PKT_FLAG_KEY){ //Add spspps to idr
+-	    static int fst_idr = 1;
+-	    if(!fst_idr && avpkt->buf){
+-	        int new_size = avpkt->size + avctx->extradata_size;
+-		uint8_t *data = av_mallocz(new_size);
+-		memcpy(data, avctx->extradata, avctx->extradata_size);
+-		memcpy(data + avctx->extradata_size, avpkt->data, avpkt->size);
+-                
+-		av_buffer_unref(&avpkt->buf);
+-                
+-		avpkt->buf = av_buffer_create(data, new_size, NULL, NULL, 0);
+-		avpkt->size = new_size;
+-		avpkt->data = avpkt->buf->data;
+-	     }
+-	     fst_idr = 0;
+-	}
++        if(avpkt->flags & AV_PKT_FLAG_KEY){ //Add spspps to idr
++            static int fst_idr = 1;
++            if(!fst_idr && avpkt->buf){
++                int new_size = avpkt->size + avctx->extradata_size;
++            uint8_t *data = av_mallocz(new_size);
++            memcpy(data, avctx->extradata, avctx->extradata_size);
++            memcpy(data + avctx->extradata_size, avpkt->data, avpkt->size);
++
++            av_buffer_unref(&avpkt->buf);
++
++            avpkt->buf = av_buffer_create(data, new_size, NULL, NULL, 0);
++            avpkt->size = new_size;
++            avpkt->data = avpkt->buf->data;
++            }
++            fst_idr = 0;
++        }
+     }
+     return ret;
+ 
+@@ -469,6 +470,8 @@
+     V4L_M2M_CAPTURE_OPTS,
+     { "spspps_to_idr", "Add spspps to each key frame", \
+ 	OFFSET(spspps_to_idr), AV_OPT_TYPE_BOOL, {.i64 = 0 }, 0, 1, FLAGS },
++    { "use_dma_copy", "Only usr for video buffer is from DMA", \
++	OFFSET(use_dma_copy), AV_OPT_TYPE_BOOL, {.i64 = 1 }, 0, 1, FLAGS },
+     { NULL },
+ };
+ 
+diff -uNr ffmpeg-4.4.4.a/libavcodec/vaapi_h264.c ffmpeg-4.4.4.b/libavcodec/vaapi_h264.c
+--- ffmpeg-4.4.4.a/libavcodec/vaapi_h264.c	2024-11-28 17:37:29.609498836 +0800
++++ ffmpeg-4.4.4.b/libavcodec/vaapi_h264.c	2024-11-28 17:41:38.763725895 +0800
+@@ -314,12 +314,12 @@
+     H264SliceContext *sl = &h->slice_ctx[0];
+     int ret;
+ 
+-    if (pic->nb_slices == 0) {
+-        ret = AVERROR_INVALIDDATA;
++	if (pic->nb_slices == 0) {
++	    ret = AVERROR_INVALIDDATA;
+         goto finish;
+     }
+ 
+-    ret = ff_vaapi_decode_issue(avctx, pic);
++	ret = ff_vaapi_decode_issue(avctx, pic);
+     if (ret < 0)
+         goto finish;
+ 
+diff -uNr ffmpeg-4.4.4.a/libavdevice/v4l2.c ffmpeg-4.4.4.b/libavdevice/v4l2.c
+--- ffmpeg-4.4.4.a/libavdevice/v4l2.c	2023-04-13 02:01:50.000000000 +0800
++++ ffmpeg-4.4.4.b/libavdevice/v4l2.c	2024-11-28 17:41:53.471805330 +0800
+@@ -108,6 +108,7 @@
+ struct buff_data {
+     struct video_data *s;
+     int index;
++    int v4l2_fd;
+ };
+ 
+ static int device_open(AVFormatContext *ctx, const char* device_path)
+@@ -579,6 +580,7 @@
+         }
+         buf_descriptor->index = buf.index;
+         buf_descriptor->s     = s;
++        buf_descriptor->v4l2_fd = s->fd;
+ 
+         pkt->buf = av_buffer_create(pkt->data, pkt->size, mmap_release_buffer,
+                                     buf_descriptor, 0);
+diff -uNr ffmpeg-4.4.4.a/libavutil/buffer.c ffmpeg-4.4.4.b/libavutil/buffer.c
+--- ffmpeg-4.4.4.a/libavutil/buffer.c	2023-04-13 02:01:50.000000000 +0800
++++ ffmpeg-4.4.4.b/libavutil/buffer.c	2024-11-28 17:43:00.928047173 +0800
+@@ -401,3 +401,9 @@
+     av_assert0(buf);
+     return buf->opaque;
+ }
++
++void *av_buffer_pool_buffer_get_buffer_opaque(AVBufferRef *ref){
++    if(!ref) return NULL;
++    AVBuffer* buf = ref->buffer;
++    return buf ? buf->opaque : NULL;
++}
+diff -uNr ffmpeg-4.4.4.a/libavutil/buffer.h ffmpeg-4.4.4.b/libavutil/buffer.h
+--- ffmpeg-4.4.4.a/libavutil/buffer.h	2023-04-13 02:01:50.000000000 +0800
++++ ffmpeg-4.4.4.b/libavutil/buffer.h	2024-11-28 17:42:49.468922147 +0800
+@@ -347,6 +347,11 @@
+ void *av_buffer_pool_buffer_get_opaque(AVBufferRef *ref);
+ 
+ /**
++ * Get the AVBuffer opaque parameter of the AVBufferRef.
++ */
++void *av_buffer_pool_buffer_get_buffer_opaque(AVBufferRef *ref);
++
++/**
+  * @}
+  */
+ 

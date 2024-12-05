@@ -1,6 +1,6 @@
-diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2allocator.c gst-plugins-good-1.22.9.m/sys/v4l2/gstv4l2allocator.c
+diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2allocator.c gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2allocator.c
 --- gst-plugins-good-1.22.9/sys/v4l2/gstv4l2allocator.c	2024-01-25 02:21:13.000000000 +0800
-+++ gst-plugins-good-1.22.9.m/sys/v4l2/gstv4l2allocator.c	2024-07-02 18:10:53.249593588 +0800
++++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2allocator.c	2024-12-04 17:24:16.686653316 +0800
 @@ -486,7 +486,7 @@
    guint32 flags = 0;
  
@@ -10,9 +10,9 @@ diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2allocator.c gst-plugins-good-1
    breq.memory = memory;
  
    if (obj->ioctl (obj->video_fd, VIDIOC_REQBUFS, &breq) == 0) {
-diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2h264enc.c gst-plugins-good-1.22.9.m/sys/v4l2/gstv4l2h264enc.c
+diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2h264enc.c gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2h264enc.c
 --- gst-plugins-good-1.22.9/sys/v4l2/gstv4l2h264enc.c	2024-01-25 02:21:13.000000000 +0800
-+++ gst-plugins-good-1.22.9.m/sys/v4l2/gstv4l2h264enc.c	2024-07-02 18:10:47.394280385 +0800
++++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2h264enc.c	2024-12-04 17:24:16.690653303 +0800
 @@ -39,6 +39,8 @@
  GST_DEBUG_CATEGORY_STATIC (gst_v4l2_h264_enc_debug);
  #define GST_CAT_DEFAULT gst_v4l2_h264_enc_debug
@@ -65,19 +65,19 @@ diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2h264enc.c gst-plugins-good-1.2
 +  PROP_LOOP_FILTER_MODE,
 +  PROP_LOOP_FILTER_ALPHA,
 +  PROP_LOOP_FILTER_BETA,
-+  
++
 +  PROP_8x8_TRANSFORM,
 +  PROP_CPB_SIZE,
 +  PROP_ENTROPY_MODE, //CABAC
-+ 
++
 +  PROP_VUI_EXT_SAR_HEIGHT,
 +  PROP_VUI_EXT_SAR_WIDTH,
 +  PROP_VUI_SAR_ENABLED,
 +  PROP_VUI_SAR_IDC,
 +
 +  PROP_FROCE_KEY,
- };
- 
++};
++
 +enum
 +{
 +  GST_V4L2_H264_ENC_RC_MODE_VBR = 0,
@@ -86,8 +86,8 @@ diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2h264enc.c gst-plugins-good-1.2
 +  GST_V4L2_H264_ENC_RC_MODE_CVBR,
 +  GST_V4L2_H264_ENC_RC_MODE_ABR,
 +  GST_V4L2_H264_ENC_RC_MODE_CRF,
-+};
-+
+ };
+ 
 +#define GST_TYPE_V4L2_H264_ENC_RC_MODE (gst_v4l2_h264_enc_rc_mode_get_type())
 +static GType
 +gst_v4l2_h264_enc_rc_mode_get_type (void)
@@ -150,7 +150,7 @@ diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2h264enc.c gst-plugins-good-1.2
 +
 +  switch(prop_id){
 +  	case PROP_BITRATE:
-+	  self->bitrate = g_value_get_uint (value);	
++	  self->bitrate = g_value_get_uint (value);
 +	  break;
 +	case PROP_RC_MODE:
 +	  self->rc_mode = g_value_get_enum (value);
@@ -169,51 +169,51 @@ diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2h264enc.c gst-plugins-good-1.2
 +	  break;
 +	case PROP_MAX_QP:
 +	  self->qp_max = g_value_get_uint (value);
-+	  break;  
++	  break;
 +	case PROP_I_FRAME_QP:
 +	  self->qp_i = g_value_get_uint (value);
 +	  break;
 +	case PROP_P_FRAME_QP:
-+	  self->qp_p = g_value_get_uint (value);	
++	  self->qp_p = g_value_get_uint (value);
 +	  break;
 +	case PROP_B_FRAME_QP:
-+	  self->qp_b = g_value_get_uint (value);	
++	  self->qp_b = g_value_get_uint (value);
 +	  break;
 +	case PROP_FROCE_KEY:
 +	  v4l2_h264_enc_set_ctrl(video_enc->v4l2output->video_fd
-+	  								, V4L2_CID_MPEG_VIDEO_FORCE_KEY_FRAME, 1);	
-+	  break;	
-+	case PROP_LOOP_FILTER_ALPHA:	
-+	  self->tc_offset = g_value_get_int (value);	
++	  								, V4L2_CID_MPEG_VIDEO_FORCE_KEY_FRAME, 1);
++	  break;
++	case PROP_LOOP_FILTER_ALPHA:
++	  self->tc_offset = g_value_get_int (value);
 +	  break;
 +    case PROP_LOOP_FILTER_BETA:
-+	  self->beta_offset = g_value_get_int (value);		
++	  self->beta_offset = g_value_get_int (value);
 +	  break;
 +  	case PROP_8x8_TRANSFORM:
 +	  self->transform8x8_en = g_value_get_boolean (value);
 +	  break;
 +    case PROP_CPB_SIZE:
-+	  self->cpb_size = g_value_get_int (value);	
++      self->cpb_size = g_value_get_int (value);
 +	  break;
 +    case PROP_ENTROPY_MODE:
 +	  self->cabac_en = g_value_get_boolean (value);
 +	  break;
 +    case PROP_VUI_EXT_SAR_HEIGHT:
-+	  self->vui_sar_width = g_value_get_uint (value);	
++	  self->vui_sar_width = g_value_get_uint (value);
 +	  break;
 +    case PROP_VUI_EXT_SAR_WIDTH:
 +	  self->vui_sar_height = g_value_get_uint (value);
 +	  break;
 +    case PROP_VUI_SAR_ENABLED:
-+	  self->vui_sar_en = g_value_get_boolean(value);	
++	  self->vui_sar_en = g_value_get_boolean(value);
 +	  break;
 +    case PROP_VUI_SAR_IDC:
 +	  self->vui_sar_height = g_value_get_uint (value);
 +	  break;
 +	default:
 +      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
-+      break; 
-+	  
++      break;
++
 +  }
  }
  
@@ -226,7 +226,7 @@ diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2h264enc.c gst-plugins-good-1.2
 +
 +  switch(prop_id){
 +	case PROP_RC_MODE:
-+	  g_value_set_enum (value, self->rc_mode);	
++	  g_value_set_enum (value, self->rc_mode);
 +	  break;
 +    case PROP_BITRATE:
 +	  g_value_set_uint (value, self->bitrate);
@@ -238,14 +238,14 @@ diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2h264enc.c gst-plugins-good-1.2
 +	  g_value_set_uint (value, self->bframes);
 +	  break;
 +	case PROP_QP:
-+	  g_value_set_uint (value, self->qp);	
++	  g_value_set_uint (value, self->qp);
 +	  break;
 +	case PROP_MIN_QP:
-+	  g_value_set_uint (value, self->qp_min);	
++	  g_value_set_uint (value, self->qp_min);
 +	  break;
 +	case PROP_MAX_QP:
-+	  g_value_set_uint (value, self->qp_max);	
-+	  break;  
++	  g_value_set_uint (value, self->qp_max);
++	  break;
 +	case PROP_I_FRAME_QP:
 +	  g_value_set_uint (value, self->qp_i);
 +	  break;
@@ -271,21 +271,21 @@ diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2h264enc.c gst-plugins-good-1.2
 +	  g_value_set_boolean (value, self->cabac_en);
 +	  break;
 +    case PROP_VUI_EXT_SAR_HEIGHT:
-+	  g_value_set_uint (value, self->vui_sar_height);	
++	  g_value_set_uint (value, self->vui_sar_height);
 +	  break;
 +    case PROP_VUI_EXT_SAR_WIDTH:
-+	  g_value_set_uint (value, self->vui_sar_width);	
++	  g_value_set_uint (value, self->vui_sar_width);
 +	  break;
 +    case PROP_VUI_SAR_ENABLED:
 +	  g_value_set_boolean (value, self->vui_sar_en);
 +	  break;
 +    case PROP_VUI_SAR_IDC:
-+	  g_value_set_uint (value, self->vui_sar_idc);	
++	  g_value_set_uint (value, self->vui_sar_idc);
 +	  break;
 +	default:
 +      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
-+      break; 
-+	  
++      break;
++
 +  }
 +
  }
@@ -344,7 +344,7 @@ diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2h264enc.c gst-plugins-good-1.2
    gobject_class->get_property =
        GST_DEBUG_FUNCPTR (gst_v4l2_h264_enc_get_property);
  
-+	  
++
 +  g_object_class_install_property (gobject_class, PROP_BITRATE,
 +		g_param_spec_uint ("bitrate", "Bitrate", "Bitrate in kbit/sec", 1,
 +			G_MAXUINT, GST_V4L2_H264_ENC_BITRATE_DEFAULT,
@@ -357,7 +357,7 @@ diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2h264enc.c gst-plugins-good-1.2
 +                G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
 +  g_object_class_install_property (gobject_class, PROP_GOP_SIZE,
 +        g_param_spec_int ("gop-size", "GOP size",
-+            "The number of pictures from one GOP header to the next. ", 
++            "The number of pictures from one GOP header to the next. ",
 +            0, G_MAXINT, GST_V4L2_H264_ENC_GOP_SIZE_DEFAULT,
 +            (GParamFlags) (GST_PARAM_CONDITIONALLY_AVAILABLE |
 +                G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
@@ -406,7 +406,7 @@ diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2h264enc.c gst-plugins-good-1.2
 +  g_object_class_install_property (gobject_class, PROP_FROCE_KEY,
 +        g_param_spec_boolean ("froce-key", "Froce key",
 +            "Froce encode from key frame",
-+            FALSE, 
++            FALSE,
 +            G_PARAM_WRITABLE | G_PARAM_STATIC_STRINGS));
 +  g_object_class_install_property (gobject_class, PROP_ENTROPY_MODE,
 +        g_param_spec_boolean ("cabac", "Use CABAC",
@@ -463,7 +463,7 @@ diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2h264enc.c gst-plugins-good-1.2
 +	        GST_V4L2_H264_ENC_VUI_SAR_IDC_DEFAULT,
 +	        (GParamFlags) (GST_PARAM_CONDITIONALLY_AVAILABLE |
 +	            G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
-+ 
++
    baseclass->codec_name = "H264";
  }
  
@@ -505,127 +505,127 @@ diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2h264enc.c gst-plugins-good-1.2
 +  GST_DEBUG_OBJECT(self, "Set H264 codec option");
 +
 +  if(v4l2_h264_enc_set_ctrl(v4l2object->video_fd, V4L2_CID_MPEG_VIDEO_GOP_SIZE, self->gop_size) < 0){
-+	GST_ERROR_OBJECT(self, "Set gop size %d failed!", self->gop_size); 
++	GST_ERROR_OBJECT(self, "Set gop size %d failed!", self->gop_size);
 +  }
 +  if(v4l2_h264_enc_set_ctrl(v4l2object->video_fd, V4L2_CID_MPEG_VIDEO_B_FRAMES, self->bframes) < 0 ){
-+	GST_ERROR_OBJECT(self, "Set bframes %d failed!", self->bframes); 
++	GST_ERROR_OBJECT(self, "Set bframes %d failed!", self->bframes);
 +  }
 +  if(v4l2_h264_enc_set_ctrl(v4l2object->video_fd, V4L2_CID_MPEG_VIDEO_REF_NUMBER_FOR_PFRAMES, self->ref_num) < 0){
-+	GST_ERROR_OBJECT(self, "Set refernece number %d failed!", self->ref_num); 
++	GST_ERROR_OBJECT(self, "Set refernece number %d failed!", self->ref_num);
 +  }
 +  if(v4l2_h264_enc_set_ctrl(v4l2object->video_fd, V4L2_CID_MPEG_VIDEO_REPEAT_SEQ_HEADER, 1) < 0){
-+  	GST_ERROR_OBJECT(self, "Set repeat seq %d failed!", 1); 
++  	GST_ERROR_OBJECT(self, "Set repeat seq %d failed!", 1);
 +  }
 +  if(v4l2_h264_enc_set_ctrl(v4l2object->video_fd, V4L2_CID_MPEG_VIDEO_H264_HIERARCHICAL_CODING_LAYER, 1) < 0){
-+	GST_ERROR_OBJECT(self, "Set coding layer %d failed!", 1); 
++	GST_ERROR_OBJECT(self, "Set coding layer %d failed!", 1);
 +  }
 +  ///
 +  if(v4l2_h264_enc_set_ctrl(v4l2object->video_fd, V4L2_CID_MPEG_VIDEO_BITRATE_MODE, self->rc_mode) < 0){
-+	GST_ERROR_OBJECT(self, "Set rc mode %d failed!", self->rc_mode); 
++	GST_ERROR_OBJECT(self, "Set rc mode %d failed!", self->rc_mode);
 +  }
 +  if(self->rc_mode == GST_V4L2_H264_ENC_RC_MODE_VBR){
 +	///
 +    if(self->qp_i > self->qp_max) self->qp_i = self->qp_max;
 +    else if(self->qp_i < self->qp_min) self->qp_i = self->qp_min;
-+    
++
 +    if(self->qp_p > self->qp_max) self->qp_p = self->qp_max;
 +    else if(self->qp_p < self->qp_min) self->qp_p = self->qp_min;
-+  
++
 +    if(self->qp_b > self->qp_max) self->qp_b = self->qp_max;
 +    else if(self->qp_b < self->qp_min) self->qp_b = self->qp_min;
-+	
++
 +    if(v4l2_h264_enc_set_ctrl(v4l2object->video_fd, V4L2_CID_MPEG_VIDEO_H264_MAX_QP, self->qp_max) < 0){
-+  	  GST_ERROR_OBJECT(self, "Set max qp %d failed!", self->qp_max); 
-+    }  
++  	  GST_ERROR_OBJECT(self, "Set max qp %d failed!", self->qp_max);
++    }
 +    if(v4l2_h264_enc_set_ctrl(v4l2object->video_fd, V4L2_CID_MPEG_VIDEO_H264_MIN_QP, self->qp_min) < 0){
-+  	  GST_ERROR_OBJECT(self, "Set min qp %d failed!", self->qp_min); 
++  	  GST_ERROR_OBJECT(self, "Set min qp %d failed!", self->qp_min);
 +    }
 +    ///
-+    if(v4l2_h264_enc_set_ctrl(v4l2object->video_fd, V4L2_CID_MPEG_VIDEO_H264_I_FRAME_QP, self->qp_i) < 0){
-+  	  GST_ERROR_OBJECT(self, "Set qp i %d failed!", self->qp_i); 
-+    }  
-+    if(v4l2_h264_enc_set_ctrl(v4l2object->video_fd, V4L2_CID_MPEG_VIDEO_H264_P_FRAME_QP, self->qp_p) < 0){
-+  	  GST_ERROR_OBJECT(self, "Set qp p %d failed!", self->qp_p); 
-+    }  
-+    if(v4l2_h264_enc_set_ctrl(v4l2object->video_fd, V4L2_CID_MPEG_VIDEO_H264_B_FRAME_QP, self->qp_b) < 0){
-+  	  GST_ERROR_OBJECT(self, "Set qp b %d failed!", self->qp_b); 
-+    } 
++//    if(v4l2_h264_enc_set_ctrl(v4l2object->video_fd, V4L2_CID_MPEG_VIDEO_H264_I_FRAME_QP, self->qp_i) < 0){
++//  	  GST_ERROR_OBJECT(self, "Set qp i %d failed!", self->qp_i);
++//    }
++//    if(v4l2_h264_enc_set_ctrl(v4l2object->video_fd, V4L2_CID_MPEG_VIDEO_H264_P_FRAME_QP, self->qp_p) < 0){
++//  	  GST_ERROR_OBJECT(self, "Set qp p %d failed!", self->qp_p);
++//    }
++//    if(v4l2_h264_enc_set_ctrl(v4l2object->video_fd, V4L2_CID_MPEG_VIDEO_H264_B_FRAME_QP, self->qp_b) < 0){
++//  	  GST_ERROR_OBJECT(self, "Set qp b %d failed!", self->qp_b);
++//    }
 +	if(v4l2_h264_enc_set_ctrl(v4l2object->video_fd, V4L2_CID_MPEG_VIDEO_BITRATE, self->bitrate) < 0){
-+  	  GST_ERROR_OBJECT(self, "Set bitrate %d failed!", self->bitrate); 
-+    } 
++  	  GST_ERROR_OBJECT(self, "Set bitrate %d failed!", self->bitrate);
++    }
 +  }
 +  else if(self->rc_mode == GST_V4L2_H264_ENC_RC_MODE_CBR){
 +	if(v4l2_h264_enc_set_ctrl(v4l2object->video_fd, V4L2_CID_MPEG_VIDEO_BITRATE, self->bitrate) < 0){
-+	  GST_ERROR_OBJECT(self, "Set bitrate %d failed!", self->bitrate); 
++	  GST_ERROR_OBJECT(self, "Set bitrate %d failed!", self->bitrate);
 +    }
 +  }
 +  else if(self->rc_mode == GST_V4L2_H264_ENC_RC_MODE_CQ){
 +	if(v4l2_h264_enc_set_ctrl(v4l2object->video_fd, V4L2_CID_MPEG_VIDEO_CONSTANT_QUALITY, self->qp) < 0){
-+	  GST_ERROR_OBJECT(self, "Set qp %d failed!", self->qp); 
++	  GST_ERROR_OBJECT(self, "Set qp %d failed!", self->qp);
 +  	}
 +  }
 +  else if(self->rc_mode == GST_V4L2_H264_ENC_RC_MODE_CVBR){
-+	GST_ERROR_OBJECT(self, "CVBR mode not support!", self->rf); 
++	GST_ERROR_OBJECT(self, "CVBR mode not support!", self->rf);
 +
 +  }
 +  else if(self->rc_mode == GST_V4L2_H264_ENC_RC_MODE_ABR){
-+	GST_ERROR_OBJECT(self, "ABR mode not support!", self->rf); 
++	GST_ERROR_OBJECT(self, "ABR mode not support!", self->rf);
 +  }
 +  else if(self->rc_mode == GST_V4L2_H264_ENC_RC_MODE_CRF){
-+	GST_ERROR_OBJECT(self, "CRF mode not support!", self->rf); 
-+  }	 
++	GST_ERROR_OBJECT(self, "CRF mode not support!", self->rf);
++  }
 +  //FIXME:The following options not be verified!!!
-+  if(self->cabac_en != GST_V4L2_H264_ENC_CABAC_DEFAULT){	
++  if(self->cabac_en != GST_V4L2_H264_ENC_CABAC_DEFAULT){
 +    if(v4l2_h264_enc_set_ctrl(v4l2object->video_fd, V4L2_CID_MPEG_VIDEO_H264_ENTROPY_MODE, self->cabac_en) < 0){
-+	  GST_ERROR_OBJECT(self, "Set CABAC ehable %d failed!", self->cabac_en); 
-+    } 
++	  GST_ERROR_OBJECT(self, "Set CABAC ehable %d failed!", self->cabac_en);
++    }
 +  }
 +  if(v4l2_h264_enc_set_ctrl(v4l2object->video_fd, V4L2_CID_MPEG_VIDEO_FORCE_KEY_FRAME, 0) < 0){
-+	  GST_ERROR_OBJECT(self, "Set force idr %d failed!", 1); 
++	  GST_ERROR_OBJECT(self, "Set force idr %d failed!", 1);
 +  }
 +  /*if(v4l2_h264_enc_set_ctrl(v4l2object->video_fd, V4L2_CID_MPEG_VIDEO_H264_CPB_SIZE, self->cpb_size) < 0){
-+	GST_ERROR_OBJECT(self, "Set cpb size %d failed!", self->cpb_size); 
++	GST_ERROR_OBJECT(self, "Set cpb size %d failed!", self->cpb_size);
 +  }*/
 +  if(self->transform8x8_en){
 +    if(v4l2_h264_enc_set_ctrl(v4l2object->video_fd, V4L2_CID_MPEG_VIDEO_H264_8X8_TRANSFORM, self->transform8x8_en) < 0){
-+	  GST_ERROR_OBJECT(self, "Set transform8x8_en %d failed!", self->transform8x8_en); 
-+    }  
++	  GST_ERROR_OBJECT(self, "Set transform8x8_en %d failed!", self->transform8x8_en);
++    }
 +  }
 +  if(self->vui_sar_en){
 +    if(v4l2_h264_enc_set_ctrl(v4l2object->video_fd, V4L2_CID_MPEG_VIDEO_H264_VUI_SAR_ENABLE, self->vui_sar_en) < 0){
-+	  GST_ERROR_OBJECT(self, "Set sar enable %d failed!", self->vui_sar_en); 
++	  GST_ERROR_OBJECT(self, "Set sar enable %d failed!", self->vui_sar_en);
 +    }
-+  }	
++  }
 +  if(self->vui_sar_idc != GST_V4L2_H264_ENC_VUI_SAR_IDC_DEFAULT){
 +    if(v4l2_h264_enc_set_ctrl(v4l2object->video_fd, V4L2_CID_MPEG_VIDEO_H264_VUI_SAR_IDC, self->vui_sar_idc) < 0){
-+	  GST_ERROR_OBJECT(self, "Set sar idc %d failed!", self->vui_sar_idc); 
-+    }  
++	  GST_ERROR_OBJECT(self, "Set sar idc %d failed!", self->vui_sar_idc);
++    }
 +  }
 +  if(self->vui_sar_width){
 +    if(v4l2_h264_enc_set_ctrl(v4l2object->video_fd, V4L2_CID_MPEG_VIDEO_H264_VUI_EXT_SAR_HEIGHT, self->vui_sar_width) < 0){
-+	  GST_ERROR_OBJECT(self, "Set sar width %d failed!", self->vui_sar_width); 
++	  GST_ERROR_OBJECT(self, "Set sar width %d failed!", self->vui_sar_width);
 +    }
 +  }
 +  if(self->vui_sar_height){
 +    if(v4l2_h264_enc_set_ctrl(v4l2object->video_fd, V4L2_CID_MPEG_VIDEO_H264_VUI_EXT_SAR_WIDTH, self->vui_sar_height) < 0){
-+	  GST_ERROR_OBJECT(self, "Set sar height %d failed!", self->vui_sar_height); 
++	  GST_ERROR_OBJECT(self, "Set sar height %d failed!", self->vui_sar_height);
 +    }
 +  }
 +  if(self->f_mode != GST_V4L2_H264_ENC_FILTER_MODE_DEFAULT){
 +    if(v4l2_h264_enc_set_ctrl(v4l2object->video_fd, V4L2_CID_MPEG_VIDEO_H264_LOOP_FILTER_MODE, self->f_mode) < 0){
-+	  GST_ERROR_OBJECT(self, "Set loop filter mode %d failed!", self->f_mode); 
++	  GST_ERROR_OBJECT(self, "Set loop filter mode %d failed!", self->f_mode);
 +    }
 +  }
 +  if(self->tc_offset){
 +    if(v4l2_h264_enc_set_ctrl(v4l2object->video_fd, V4L2_CID_MPEG_VIDEO_H264_LOOP_FILTER_ALPHA, self->tc_offset) < 0){
-+	  GST_ERROR_OBJECT(self, "Set filter alpha %d failed!", self->tc_offset); 
++	  GST_ERROR_OBJECT(self, "Set filter alpha %d failed!", self->tc_offset);
 +    }
 +  }
 +  if(self->beta_offset){
 +    if(v4l2_h264_enc_set_ctrl(v4l2object->video_fd, V4L2_CID_MPEG_VIDEO_H264_LOOP_FILTER_BETA, self->beta_offset) < 0){
-+	  GST_ERROR_OBJECT(self, "Set filter beta %d failed!", self->beta_offset); 
++	  GST_ERROR_OBJECT(self, "Set filter beta %d failed!", self->beta_offset);
 +    }
-+  } 
++  }
 +
 +  return TRUE;
 +}
@@ -633,9 +633,9 @@ diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2h264enc.c gst-plugins-good-1.2
  /* Probing functions */
  gboolean
  gst_v4l2_is_h264_enc (GstCaps * sink_caps, GstCaps * src_caps)
-diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2h264enc.h gst-plugins-good-1.22.9.m/sys/v4l2/gstv4l2h264enc.h
+diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2h264enc.h gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2h264enc.h
 --- gst-plugins-good-1.22.9/sys/v4l2/gstv4l2h264enc.h	2024-01-25 02:21:13.000000000 +0800
-+++ gst-plugins-good-1.22.9.m/sys/v4l2/gstv4l2h264enc.h	2024-07-02 18:10:35.832561375 +0800
++++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2h264enc.h	2024-12-04 17:24:16.690653303 +0800
 @@ -42,6 +42,41 @@
  struct _GstV4l2H264Enc
  {
@@ -645,7 +645,7 @@ diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2h264enc.h gst-plugins-good-1.2
 +  GstV4l2Object *v4l2capture;
 +
 +  /* properties */
-+ 
++
 +  /* device dependent properties */
 +  guint rc_mode;
 +  guint bitrate;
@@ -654,7 +654,7 @@ diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2h264enc.h gst-plugins-good-1.2
 +
 +  guint qp;
 +  guint rf;
-+  
++
 +  guint qp_min;
 +  guint qp_max;
 +  guint qp_i;
@@ -678,9 +678,9 @@ diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2h264enc.h gst-plugins-good-1.2
  };
  
  struct _GstV4l2H264EncClass
-diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2jpegenc.c gst-plugins-good-1.22.9.m/sys/v4l2/gstv4l2jpegenc.c
+diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2jpegenc.c gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2jpegenc.c
 --- gst-plugins-good-1.22.9/sys/v4l2/gstv4l2jpegenc.c	2024-01-25 02:21:13.000000000 +0800
-+++ gst-plugins-good-1.22.9.m/sys/v4l2/gstv4l2jpegenc.c	2024-07-02 18:10:29.569767924 +0800
++++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2jpegenc.c	2024-12-04 17:24:16.690653303 +0800
 @@ -40,15 +40,26 @@
  GST_DEBUG_CATEGORY_STATIC (gst_v4l2_jpeg_enc_debug);
  #define GST_CAT_DEFAULT gst_v4l2_jpeg_enc_debug
@@ -818,9 +818,9 @@ diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2jpegenc.c gst-plugins-good-1.2
  /* Probing functions */
  gboolean
  gst_v4l2_is_jpeg_enc (GstCaps * sink_caps, GstCaps * src_caps)
-diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2jpegenc.h gst-plugins-good-1.22.9.m/sys/v4l2/gstv4l2jpegenc.h
+diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2jpegenc.h gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2jpegenc.h
 --- gst-plugins-good-1.22.9/sys/v4l2/gstv4l2jpegenc.h	2024-01-25 02:21:13.000000000 +0800
-+++ gst-plugins-good-1.22.9.m/sys/v4l2/gstv4l2jpegenc.h	2024-07-02 18:10:18.297771129 +0800
++++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2jpegenc.h	2024-12-04 17:24:16.690653303 +0800
 @@ -42,6 +42,8 @@
  struct _GstV4l2JPEGEnc
  {
@@ -830,9 +830,9 @@ diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2jpegenc.h gst-plugins-good-1.2
  };
  
  struct _GstV4l2JPEGEncClass
-diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2object.c gst-plugins-good-1.22.9.m/sys/v4l2/gstv4l2object.c
+diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2object.c gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2object.c
 --- gst-plugins-good-1.22.9/sys/v4l2/gstv4l2object.c	2024-01-25 02:21:13.000000000 +0800
-+++ gst-plugins-good-1.22.9.m/sys/v4l2/gstv4l2object.c	2024-07-02 18:10:13.180788422 +0800
++++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2object.c	2024-12-04 17:24:16.690653303 +0800
 @@ -3800,6 +3800,20 @@
    memset (&format, 0x00, sizeof (struct v4l2_format));
    format.type = v4l2object->type;
@@ -854,9 +854,9 @@ diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2object.c gst-plugins-good-1.22
    if (is_mplane) {
      format.type = v4l2object->type;
      format.fmt.pix_mp.pixelformat = pixelformat;
-diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2videodec.c gst-plugins-good-1.22.9.m/sys/v4l2/gstv4l2videodec.c
+diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2videodec.c gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2videodec.c
 --- gst-plugins-good-1.22.9/sys/v4l2/gstv4l2videodec.c	2024-01-25 02:21:13.000000000 +0800
-+++ gst-plugins-good-1.22.9.m/sys/v4l2/gstv4l2videodec.c	2024-07-02 18:10:06.956350532 +0800
++++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2videodec.c	2024-12-04 17:26:02.806321412 +0800
 @@ -715,9 +715,12 @@
  gst_v4l2_video_dec_loop (GstVideoDecoder * decoder)
  {
@@ -865,16 +865,18 @@ diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2videodec.c gst-plugins-good-1.
    GstBufferPool *pool;
    GstVideoCodecFrame *frame;
    GstBuffer *buffer = NULL;
-+  GstVideoInfo *vinfo = &self->v4l2capture->info;;
++  GstVideoInfo *vinfo = &self->v4l2output->info;
 +  GstMapInfo info;
    GstFlowReturn ret;
  
    GST_LOG_OBJECT (self, "Looping.");
-@@ -843,7 +846,17 @@
+@@ -843,7 +846,19 @@
      if (oldest_frame)
        gst_video_codec_frame_unref (oldest_frame);
  
 -    frame->duration = self->v4l2capture->duration;
++	frame->duration = self->v4l2capture->duration;
++
 +	/*resize buffer to roi size*/
 +	gint w_aligin = GST_ROUND_UP_16 (vinfo->width);
 +	gint h_aligin = GST_ROUND_UP_16 (vinfo->height);
@@ -889,9 +891,9 @@ diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2videodec.c gst-plugins-good-1.
      frame->output_buffer = buffer;
      buffer = NULL;
      ret = gst_video_decoder_finish_frame (decoder, frame);
-diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2videoenc.c gst-plugins-good-1.22.9.m/sys/v4l2/gstv4l2videoenc.c
+diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2videoenc.c gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2videoenc.c
 --- gst-plugins-good-1.22.9/sys/v4l2/gstv4l2videoenc.c	2024-01-25 02:21:13.000000000 +0800
-+++ gst-plugins-good-1.22.9.m/sys/v4l2/gstv4l2videoenc.c	2024-07-02 18:09:59.024409503 +0800
++++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2videoenc.c	2024-12-04 17:24:16.694653290 +0800
 @@ -30,6 +30,7 @@
  #include <errno.h>
  #include <unistd.h>
@@ -981,9 +983,9 @@ diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2videoenc.c gst-plugins-good-1.
  }
  
  static void
-diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2videoenc.h gst-plugins-good-1.22.9.m/sys/v4l2/gstv4l2videoenc.h
+diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2videoenc.h gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2videoenc.h
 --- gst-plugins-good-1.22.9/sys/v4l2/gstv4l2videoenc.h	2024-01-25 02:21:13.000000000 +0800
-+++ gst-plugins-good-1.22.9.m/sys/v4l2/gstv4l2videoenc.h	2024-07-02 18:09:47.627690794 +0800
++++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2videoenc.h	2024-12-04 17:24:16.694653290 +0800
 @@ -66,6 +66,9 @@
    gboolean processing;
    GstFlowReturn output_flow;
