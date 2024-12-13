@@ -1,6 +1,6 @@
 diff -uNr gst-plugins-good-1.22.9.a/sys/v4l2/gstv4l2bufferpool.c gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2bufferpool.c
 --- gst-plugins-good-1.22.9.a/sys/v4l2/gstv4l2bufferpool.c	2024-01-25 02:21:13.000000000 +0800
-+++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2bufferpool.c	2024-12-03 18:43:59.066519387 +0800
++++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2bufferpool.c	2024-12-13 15:26:03.054383112 +0800
 @@ -134,6 +134,91 @@
    }
  }
@@ -181,7 +181,7 @@ diff -uNr gst-plugins-good-1.22.9.a/sys/v4l2/gstv4l2bufferpool.c gst-plugins-goo
 +
 diff -uNr gst-plugins-good-1.22.9.a/sys/v4l2/gstv4l2bufferpool.h gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2bufferpool.h
 --- gst-plugins-good-1.22.9.a/sys/v4l2/gstv4l2bufferpool.h	2024-01-25 02:21:13.000000000 +0800
-+++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2bufferpool.h	2024-12-03 18:43:32.503713703 +0800
++++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2bufferpool.h	2024-12-13 15:26:10.149862595 +0800
 @@ -36,6 +36,24 @@
  
  G_BEGIN_DECLS
@@ -208,9 +208,22 @@ diff -uNr gst-plugins-good-1.22.9.a/sys/v4l2/gstv4l2bufferpool.h gst-plugins-goo
  #define GST_IS_V4L2_BUFFER_POOL(obj)   (G_TYPE_CHECK_INSTANCE_TYPE ((obj), GST_TYPE_V4L2_BUFFER_POOL))
  #define GST_V4L2_BUFFER_POOL(obj)      (G_TYPE_CHECK_INSTANCE_CAST ((obj), GST_TYPE_V4L2_BUFFER_POOL, GstV4l2BufferPool))
 diff -uNr gst-plugins-good-1.22.9.a/sys/v4l2/gstv4l2object.c gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2object.c
---- gst-plugins-good-1.22.9.a/sys/v4l2/gstv4l2object.c	2024-12-03 18:40:05.382647930 +0800
-+++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2object.c	2024-12-03 18:42:09.423365842 +0800
-@@ -524,7 +524,7 @@
+--- gst-plugins-good-1.22.9.a/sys/v4l2/gstv4l2object.c	2024-12-13 15:23:06.601401623 +0800
++++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2object.c	2024-12-13 15:27:21.640348085 +0800
+@@ -468,6 +468,12 @@
+       g_param_spec_boxed ("extra-controls", "Extra Controls",
+           "Extra v4l2 controls (CIDs) for the device",
+           GST_TYPE_STRUCTURE, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
++
++  g_object_class_install_property (gobject_class, PROP_REMAP_SYNC,
++      g_param_spec_boolean ("remap-sync", "DMA remap sync",
++        "Improve video buffer access speed by cache DMA to CPU",
++        TRUE,
++        G_PARAM_WRITABLE | G_PARAM_STATIC_STRINGS));
+ }
+ 
+ /* Support for 32bit off_t, this wrapper is casting off_t to gint64 */
+@@ -524,12 +530,14 @@
    v4l2object->n_v4l2_planes = 0;
  
    v4l2object->no_initial_format = FALSE;
@@ -219,17 +232,14 @@ diff -uNr gst-plugins-good-1.22.9.a/sys/v4l2/gstv4l2object.c gst-plugins-good-1.
    v4l2object->extern_buffer = FALSE;
  
    v4l2object->poll = gst_poll_new (TRUE);
-@@ -724,6 +724,9 @@
-     case PROP_FORCE_ASPECT_RATIO:
-       v4l2object->keep_aspect = g_value_get_boolean (value);
-       break;
-+    case PROP_USE_DMA_COPY:
-+      v4l2object->use_dma_copy = g_value_get_boolean (value);
-+      break;
-     default:
-       return FALSE;
-       break;
-@@ -929,6 +932,11 @@
+   v4l2object->can_poll_device = TRUE;
+ 
++  v4l2object->remap_sync = FALSE;
++
+   /* We now disable libv4l2 by default, but have an env to enable it. */
+ #ifdef HAVE_LIBV4L2
+   if (g_getenv ("GST_V4L2_USE_LIBV4L2")) {
+@@ -929,6 +937,11 @@
    else
      return FALSE;
  
@@ -241,7 +251,7 @@ diff -uNr gst-plugins-good-1.22.9.a/sys/v4l2/gstv4l2object.c gst-plugins-good-1.
    gst_v4l2_object_init_poll (v4l2object);
  
    return TRUE;
-@@ -3818,7 +3826,7 @@
+@@ -3818,7 +3831,7 @@
    g_usleep(50*1000);
  
    /*Fix for YUV align*/
@@ -250,7 +260,7 @@ diff -uNr gst-plugins-good-1.22.9.a/sys/v4l2/gstv4l2object.c gst-plugins-good-1.
    	&& !GST_VIDEO_INFO_IS_YUV (&info)){
    	width = GST_ROUND_UP_16 (width);
      height = GST_ROUND_UP_16 (height);
-@@ -3841,7 +3849,7 @@
+@@ -3841,7 +3854,7 @@
          stride = GST_VIDEO_TILE_X_TILES (stride) *
              GST_VIDEO_FORMAT_INFO_TILE_STRIDE (info.finfo, i);
  
@@ -259,7 +269,23 @@ diff -uNr gst-plugins-good-1.22.9.a/sys/v4l2/gstv4l2object.c gst-plugins-good-1.
      }
  
      if (GST_VIDEO_INFO_FORMAT (&info) == GST_VIDEO_FORMAT_ENCODED)
-@@ -5397,7 +5405,7 @@
+@@ -3900,6 +3913,15 @@
+   GST_DEBUG_OBJECT (v4l2object->dbg_obj, "Desired colorspace is %d:%d:%d:%d",
+       colorspace, range, matrix, transfer);
+ 
++  if(v4l2object->remap_sync){
++    struct v4l2_format tfmt = {
++      .type = format.type,
++      .fmt.raw_data[0] = 0xf1,
++      .fmt.raw_data[1] = 0x01
++    };
++    v4l2object->ioctl(fd, VIDIOC_S_FMT, &tfmt);
++  }
++
+   if (try_only) {
+     if (v4l2object->ioctl (fd, VIDIOC_TRY_FMT, &format) < 0)
+       goto try_fmt_failed;
+@@ -5397,7 +5419,7 @@
  	  /*[Wang.Zhou]Fixed rtsp failed*/
            if(V4L2_TYPE_IS_OUTPUT(obj->type) && gst_buffer_pool_is_active (obj_pool))
                gst_buffer_pool_set_active(obj_pool, FALSE);
@@ -269,9 +295,9 @@ diff -uNr gst-plugins-good-1.22.9.a/sys/v4l2/gstv4l2object.c gst-plugins-good-1.
              pool = gst_object_ref (obj_pool);
  
 diff -uNr gst-plugins-good-1.22.9.a/sys/v4l2/gstv4l2object.h gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2object.h
---- gst-plugins-good-1.22.9.a/sys/v4l2/gstv4l2object.h	2024-12-03 18:40:05.382647930 +0800
-+++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2object.h	2024-12-03 18:41:27.277567486 +0800
-@@ -229,6 +229,10 @@
+--- gst-plugins-good-1.22.9.a/sys/v4l2/gstv4l2object.h	2024-12-13 15:23:06.601401623 +0800
++++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2object.h	2024-12-13 15:27:35.771950794 +0800
+@@ -229,6 +229,12 @@
     * on slow USB firmwares. When this is set, gst_v4l2_set_format() will modify
     * the caps to reflect what was negotiated during fixation */
    gboolean skip_try_fmt_probes;
@@ -279,23 +305,88 @@ diff -uNr gst-plugins-good-1.22.9.a/sys/v4l2/gstv4l2object.h gst-plugins-good-1.
 +  /* export fd if the input is from v4l2 buffer */
 +  gboolean use_dma_copy;
 +  int exp_fd[VIDEO_MAX_FRAME+1];
++
++  gboolean remap_sync;
  };
  
  struct _GstV4l2ObjectClassHelper {
-@@ -253,7 +257,8 @@
+@@ -253,7 +259,8 @@
      PROP_CAPTURE_IO_MODE,     \
      PROP_EXTRA_CONTROLS,      \
      PROP_PIXEL_ASPECT_RATIO,  \
 -    PROP_FORCE_ASPECT_RATIO
 +    PROP_FORCE_ASPECT_RATIO,  \
-+    PROP_USE_DMA_COPY
++    PROP_REMAP_SYNC
  
  /* create/destroy */
  GstV4l2Object*  gst_v4l2_object_new       (GstElement * element,
+diff -uNr gst-plugins-good-1.22.9.a/sys/v4l2/gstv4l2videodec.c gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2videodec.c
+--- gst-plugins-good-1.22.9.a/sys/v4l2/gstv4l2videodec.c	2024-12-13 15:23:06.601401623 +0800
++++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2videodec.c	2024-12-13 15:27:59.757064021 +0800
+@@ -58,8 +58,8 @@
+ enum
+ {
+   PROP_0,
++  V4L2_STD_OBJECT_PROPS,
+   PROP_V4L2_EXTERN_BUFFER,
+-  V4L2_STD_OBJECT_PROPS
+ };
+ 
+ #define gst_v4l2_video_dec_parent_class parent_class
+@@ -82,10 +82,13 @@
+       }
+       break;
+     case PROP_V4L2_EXTERN_BUFFER:
+-        self->use_extern_buffer = g_value_get_boolean(value);
+-        if(self->v4l2capture)
+-            self->v4l2capture->extern_buffer = self->use_extern_buffer;
+-        break;
++      self->use_extern_buffer = g_value_get_boolean(value);
++      self->v4l2capture->extern_buffer = self->use_extern_buffer;
++      break;
++    case PROP_REMAP_SYNC:
++      self->v4l2capture->remap_sync = g_value_get_boolean (value);
++      self->v4l2output->remap_sync = g_value_get_boolean (value);
++      break;
+ 
+       /* By default, only set on output */
+     default:
+@@ -1292,8 +1295,7 @@
+       V4L2_BUF_TYPE_VIDEO_CAPTURE, klass->default_device,
+       gst_v4l2_get_input, gst_v4l2_set_input, NULL);
+ 
+-  if(self->v4l2capture)
+-    self->v4l2capture->extern_buffer = self->use_extern_buffer;
++  self->v4l2capture->extern_buffer = self->use_extern_buffer;
+ }
+ 
+ static void
 diff -uNr gst-plugins-good-1.22.9.a/sys/v4l2/gstv4l2videoenc.c gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2videoenc.c
---- gst-plugins-good-1.22.9.a/sys/v4l2/gstv4l2videoenc.c	2024-12-03 18:40:09.734634318 +0800
-+++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2videoenc.c	2024-12-03 18:47:51.546944387 +0800
-@@ -614,7 +614,7 @@
+--- gst-plugins-good-1.22.9.a/sys/v4l2/gstv4l2videoenc.c	2024-12-13 15:23:12.225384033 +0800
++++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2videoenc.c	2024-12-13 15:28:21.174523211 +0800
+@@ -53,6 +53,7 @@
+ {
+   PROP_0,
+   V4L2_STD_OBJECT_PROPS,
++  PROP_USE_DMA_COPY,
+ };
+ 
+ #define gst_v4l2_video_enc_parent_class parent_class
+@@ -72,6 +73,13 @@
+         G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+       }
+       break;
++    case PROP_USE_DMA_COPY:
++      self->v4l2output->use_dma_copy = g_value_get_boolean (value);
++      break;
++    case PROP_REMAP_SYNC:
++      self->v4l2capture->remap_sync = g_value_get_boolean (value);
++      self->v4l2output->remap_sync = g_value_get_boolean (value);
++      break;
+ 
+       /* By default, only set on output */
+     default:
+@@ -614,7 +622,7 @@
  
    state = gst_video_encoder_get_output_state (encoder);
    s = gst_caps_get_structure (state->caps, 0);
@@ -304,7 +395,7 @@ diff -uNr gst-plugins-good-1.22.9.a/sys/v4l2/gstv4l2videoenc.c gst-plugins-good-
  
    if (codec->profile_cid)
      gst_structure_set (s, "profile", G_TYPE_STRING, ctx.profile, NULL);
-@@ -730,14 +730,14 @@
+@@ -730,14 +738,14 @@
  	}
  
      do{
@@ -321,7 +412,7 @@ diff -uNr gst-plugins-good-1.22.9.a/sys/v4l2/gstv4l2videoenc.c gst-plugins-good-
  
  	  g_list_foreach (frames, (GFunc) gst_video_codec_frame_unref, NULL);
  	  g_list_free (frames);
-@@ -1177,6 +1177,7 @@
+@@ -1177,6 +1185,7 @@
        gst_v4l2_get_output, gst_v4l2_set_output, NULL);
    self->v4l2output->no_initial_format = TRUE;
    self->v4l2output->keep_aspect = FALSE;
@@ -329,7 +420,7 @@ diff -uNr gst-plugins-good-1.22.9.a/sys/v4l2/gstv4l2videoenc.c gst-plugins-good-
  
    self->v4l2capture = gst_v4l2_object_new (GST_ELEMENT (self),
        GST_OBJECT (GST_VIDEO_ENCODER_SRC_PAD (self)),
-@@ -1236,6 +1237,12 @@
+@@ -1236,6 +1245,12 @@
    element_class->change_state =
        GST_DEBUG_FUNCPTR (gst_v4l2_video_enc_change_state);
  
