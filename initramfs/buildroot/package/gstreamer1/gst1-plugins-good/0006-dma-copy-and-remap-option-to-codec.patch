@@ -218,7 +218,7 @@ diff -uNr gst-plugins-good-1.22.9.a/sys/v4l2/gstv4l2object.c gst-plugins-good-1.
 +  g_object_class_install_property (gobject_class, PROP_REMAP_SYNC,
 +      g_param_spec_boolean ("remap-sync", "DMA remap sync",
 +        "Improve video buffer access speed by cache DMA to CPU",
-+        TRUE,
++        FALSE,
 +        G_PARAM_WRITABLE | G_PARAM_STATIC_STRINGS));
  }
  
