@@ -120,9 +120,9 @@ function cp_files() {
 }
 
 if [ "$boot_from" = "EMMC" ]; then
-	partition=8
+	partition=9
 	if [ "${OVERLAYFS}" = "1" ]; then
-		partition=9
+		partition=10
 	fi
 elif [ "$boot_from" = "SDCARD" ]; then
 	partition=2
