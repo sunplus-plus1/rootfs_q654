@@ -1,8 +1,8 @@
 #!/bin/sh
 
 ## SDCARD : DEVPART=2 => ext4    partition
-## EMMC   : DEVPART=8 => rootfs  partition 
-## EMMC   : DEVPART=9 => overlay partition 
+## EMMC   : DEVPART=9 => rootfs  partition
+## EMMC   : DEVPART=10 => overlay partition
 
 if [ "$DEVTYPE" = "EMMC" ]; then
   DEVICE=/dev/mmcblk0
