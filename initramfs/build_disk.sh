@@ -25,24 +25,34 @@ if [ "${ROOTFS_CONTENT:0:5}" = "YOCTO" ]; then
 	LIBPATH=/lib
 fi
 
-function replace_sbin_init() {
-	if [ -f ${DISKOUT}/sbin/init ]; then
-		rm -f ${DISKOUT}/sbin/init
-	fi
-	if [ "${OVERLAYFS}" = "1" ]; then
-		mkdir -p ${DISKOUT}/overlay
+function set_sbin_init() {
 cat <<EOF > ${DISKOUT}/sbin/init
 #!/bin/sh
-mount -t ext4 /dev/mmcblk0p${partition} /overlay
+$1
 mkdir -p /overlay/upper
 mkdir -p /overlay/work
 mkdir -p /overlay/lower
 mount -t overlay overlay -o lowerdir=/,upperdir=/overlay/upper,workdir=/overlay/work /mnt
 mkdir -p /mnt/rom
 pivot_root /mnt /mnt/rom
-exec chroot . $1
+exec chroot . $2
 EOF
-chmod 0544 ${DISKOUT}/sbin/init
+}
+
+function replace_sbin_init() {
+	if [ -f ${DISKOUT}/sbin/init ]; then
+		rm -f ${DISKOUT}/sbin/init
+	fi
+
+	if [ "${OVERLAYFS}" = "1" ]; then
+		mkdir -p ${DISKOUT}/overlay
+		if [ "$boot_from" = "NAND" ]; then
+			set_sbin_init "ubiattach /dev/ubi_ctrl -m ${partition}; mount -t ubifs ubi0:overlay /overlay" "$1"
+		else
+			set_sbin_init "mount -t ext4 /dev/mmcblk0p${partition} /overlay" "$1"
+		fi
+	
+		chmod 0544 ${DISKOUT}/sbin/init
 	else
 		if [ "${ROOTFS_CONTENT}" = "BUSYBOX" ]; then
 			cd ${DISKOUT}/sbin
@@ -119,7 +129,7 @@ function cp_files() {
 	sed -i '/\/agetty/ s|\/agetty|& -a root|' ${DISKOUT}${LIBPATH}/systemd/system/serial-getty@.service
 }
 
-if [ "$boot_from" = "EMMC" ]; then
+if [ "$boot_from" = "EMMC" ] || [ "$boot_from" = "NAND" ]; then
 	partition=9
 	if [ "${OVERLAYFS}" = "1" ]; then
 		partition=10
@@ -128,8 +138,7 @@ elif [ "$boot_from" = "SDCARD" ]; then
 	partition=2
 fi
 
-# restore rootfs to factory setting
-if [ -d "${DISKOUT}" ] && [ "${OVERLAYFS}" = "1" ]; then
+function set_restore() {
 cat <<EOF > ${DISKOUT}/sbin/restore
 #!/bin/sh
 which systemctl
@@ -143,12 +152,21 @@ if [ "\$?" == "0" ]; then
 	systemctl stop systemd-journald-audit.socket
 	systemctl stop systemd-journald-dev-log.socket
 fi
-mount -t ext4 /dev/mmcblk0p$partition /mnt
+$1
 rm -rf /mnt/lowwer/*
 rm -rf /mnt/upper/*
 rm -rf /mnt/work/*
 reboot
 EOF
+}
+
+# restore rootfs to factory setting
+if [ -d "${DISKOUT}" ] && [ "${OVERLAYFS}" = "1" ]; then
+	if [ "$boot_from" = "NAND" ]; then
+		set_restore "ubiattach /dev/ubi_ctrl -m ${partition}; mount -t ubifs ubi0:overlay /mnt"	
+	else
+		set_restore "mount -t ext4 /dev/mmcblk0p$partition /mnt"
+	fi
 	chmod 0544 ${DISKOUT}/sbin/restore
 	if [ "${ROOTFS_CONTENT}" != "BUSYBOX" ]; then
 		cp buildroot/systemd/usr/lib/systemd/system/monitor_keys.service ${DISKOUT}${LIBPATH}/systemd/system/
@@ -406,6 +424,17 @@ if [ -d extra/ ]; then
 	cp -av extra/* $DISKOUT
 fi
 
+function set_rc_init() {
+
+cat <<EOF > ${DISKOUT}/etc/init.d/rc.init
+#!/bin/sh
+$(echo -e "$1" | sed 's/^[ \t]*//') 
+umount -l /rom
+rm -rf /overlay /rom
+EOF
+
+}
+
 if [ "$ARCH" = "arm64" ]; then
 	if [ -d prebuilt/arm64 ]; then
 		cp -av prebuilt/arm64/* $DISKOUT
@@ -422,17 +451,17 @@ if [ "$ARCH" = "arm64" ]; then
 	replace_sbin_init "/bin/busybox init"
 
 	if [ "${OVERLAYFS}" = "1" ]; then
-cat <<EOF > ${DISKOUT}/etc/init.d/rc.init
-#!/bin/sh
-if [ -f /etc/init.d/rc.resizefs ];then
-        /sbin/resize2fs /dev/mmcblk0p${partition}
-        rm /etc/init.d/rc.resizefs
-fi
-umount -l /rom
-rm -rf /overlay /rom
 
-EOF
-	chmod +x ${DISKOUT}/etc/init.d/rc.init
+		if [ "$boot_from" = "NAND" ]; then
+			set_rc_init ""
+		else
+			set_rc_init "if [ -f /etc/init.d/rc.resizefs ];then
+				/sbin/resize2fs /dev/mmcblk0p${partition}
+				rm /etc/init.d/rc.resizefs
+				fi"
+		fi
+
+		chmod +x ${DISKOUT}/etc/init.d/rc.init
 	fi
 
 elif [ $V7_BUILD -eq 1 ]; then

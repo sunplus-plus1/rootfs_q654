@@ -6,7 +6,10 @@
 # $3 : NAND_PAGE_SIZE
 # $4 : NAND_PAGE_CNT
 OUT_IMG=rootfs.img
+OVERLAY=overlay
 WORK_DIR=./initramfs/disk
+
+rm -f $OUT_IMG $OVERLAY
 
 if [ "$1" = "EMMC" ]; then
 	
@@ -21,8 +24,6 @@ if [ "$1" = "EMMC" ]; then
 	cp -av wifi_fw/* $WORK_DIR
 	diskdir_sz=`du -sb $WORK_DIR | cut -f1`
 	echo "rootfs total size = $diskdir_sz bytes"
-
-	rm -rf $OUT_IMG
 
     if [ "$OVERLAYFS" == "1" ]; then
 		#########################  squashfs fs #####################
@@ -52,13 +53,16 @@ elif [ "$1" = "NAND" -o "$1" = "PNAND" ]; then
 #                      use the ubi cmd to write rootfs into nand in ISP, need add ubi config in uboot; used it!!!
 #mkfs.ubifs+ubinize+nand write: the rootfs size is fixed in ubi.cfg that used in ubinize function. this
 #                               can use the nand write cmd to write dat into nand, no need do something in uboot.
-	echo -e  "\E[1;33m ========make ubi fs========== \E[0m"
-	MKFS_UBIFS="fakeroot -- mkfs.ubifs"
+
+    NAND_PAGESIZE=$(($3*1024))
+    NAND_BLK_PAGESIZE=$4
+	NAND_BLK_SIZE=$NAND_BLK_PAGESIZE*$NAND_PAGESIZE  # size = blockcnt*2048
 	UBINIZE=./tools/ubinize
 	UBI_CFG=./ubi.cfg
 
-	NAND_PAGESIZE=$(($3*1024))
-	NAND_BLK_PAGESIZE=$4
+	echo -e  "\E[1;33m ========make ubi fs========== \E[0m"
+	MKFS_UBIFS="fakeroot -- mkfs.ubifs"
+
 	MAX_ERASE_BLK_CNT=$((($2*1024)/($3*$4)/1024*1015))
 	echo " NAND_PAGESIZE=$NAND_PAGESIZE"
 	echo " NAND_BLK_PAGESIZE=$NAND_BLK_PAGESIZE"
@@ -71,12 +75,24 @@ elif [ "$1" = "NAND" -o "$1" = "PNAND" ]; then
 		exit 1
 	fi
 
-	$MKFS_UBIFS -r $WORK_DIR -m $NAND_PAGESIZE -e $(($NAND_LOGIC_REASE_SIZE)) -c $MAX_ERASE_BLK_CNT -F -o $OUT_IMG
+	echo "$MKFS_UBIFS -r $WORK_DIR -m $NAND_PAGESIZE -e $(($NAND_LOGIC_REASE_SIZE)) -c $MAX_ERASE_BLK_CNT -F -o $OUT_IMG"
+
+    if [ "$OVERLAYFS" == "1" ] && [ "$1" = "NAND" ]; then
+		#########################  squashfs fs #####################
+	    echo -e  "\E[1;33m ========make squashfs fs========== \E[0m"
+        echo "$FAKEROOT /bin/bash -c \"mksquashfs $WORK_DIR $OUT_IMG \""
+		$FAKEROOT /bin/bash -c "mksquashfs $WORK_DIR $OUT_IMG -noappend"
+		mkdir empty
+		$MKFS_UBIFS -r empty -m $NAND_PAGESIZE -e $(($NAND_LOGIC_REASE_SIZE)) -c $MAX_ERASE_BLK_CNT -F -o $OVERLAY
+		[ "$?" != "0" ] && exit 1
+		rm -rf empty
+	else
+		$MKFS_UBIFS -r $WORK_DIR -m $NAND_PAGESIZE -e $(($NAND_LOGIC_REASE_SIZE)) -c $MAX_ERASE_BLK_CNT -F -o $OUT_IMG
+    fi
 
 	if [ "$1" = "ZEBU_PNAND" ]; then #mkfs.ubifs+ubinize is used to paranand boot in zebu
 
 		NAND_ROOTFS_SIZE=100MiB
-		NAND_BLK_SIZE=$NAND_BLK_PAGESIZE*$NAND_PAGESIZE  # size = blockcnt*2048
 		## rootfs size need to smaller than rootfs partition size set in isp
 		if [ 1020 -eq $MAX_ERASE_BLK_CNT ];then
 			NAND_ROOTFS_SIZE=100MiB
