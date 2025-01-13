@@ -29,9 +29,6 @@ function set_sbin_init() {
 cat <<EOF > ${DISKOUT}/sbin/init
 #!/bin/sh
 $1
-mkdir -p /overlay/upper
-mkdir -p /overlay/work
-mkdir -p /overlay/lower
 mount -t overlay overlay -o lowerdir=/,upperdir=/overlay/upper,workdir=/overlay/work /mnt
 mkdir -p /mnt/rom
 pivot_root /mnt /mnt/rom
@@ -49,7 +46,7 @@ function replace_sbin_init() {
 		if [ "$boot_from" = "NAND" ]; then
 			set_sbin_init "ubiattach /dev/ubi_ctrl -m ${partition}; mount -t ubifs ubi0:overlay /overlay" "$1"
 		else
-			set_sbin_init "mount -t ext4 /dev/mmcblk0p${partition} /overlay" "$1"
+			set_sbin_init "mount -t ext4 /dev/mmcblk0p${partition} /overlay;mkdir -p /overlay/upper; mkdir -p /overlay/work" "$1"
 		fi
 	
 		chmod 0544 ${DISKOUT}/sbin/init
@@ -69,7 +66,6 @@ function replace_sbin_init() {
 function resize_partition() {
 
 	if [ "${ROOTFS_CONTENT:0:6}" = "UBUNTU" ]; then
-
 		cp buildroot/systemd/usr/bin/init_tasks.sh ${DISKOUT}/usr/bin/
 		cp buildroot/systemd/usr/bin/resize_partition.sh ${DISKOUT}/usr/bin/
 		cp buildroot/systemd/usr/lib/systemd/system/resize_partition.service ${DISKOUT}/usr/lib/systemd/system
@@ -77,9 +73,7 @@ function resize_partition() {
 		cd ${DISKOUT}/etc/systemd/system/multi-user.target.wants
 		ln -s /usr/lib/systemd/system/resize_partition.service resize_partition.service
 		cd -
-
 	else
-
 		cp buildroot/systemd/usr/bin/*  ${DISKOUT}/usr/bin/
 		cp -R buildroot/systemd/usr/lib/systemd ${DISKOUT}${LIBPATH}
 
@@ -87,7 +81,6 @@ function resize_partition() {
 		ln -s ${LIBPATH}/systemd/system/resize_partition.service resize_partition.service
 		ln -s ${LIBPATH}/systemd/system/init_tasks.service init_tasks.service
 		cd -
-
 	fi
 
 	# This file is for resize_partition.service use
@@ -100,7 +93,7 @@ EOF
 
 function cp_files() {
 
-    cp -R ${DISKZ}lib/firmware/ ${DISKLIB}
+	cp -R ${DISKZ}lib/firmware/ ${DISKLIB}
 
 	# for overlayfs
 	replace_sbin_init "/lib/systemd/systemd"
@@ -108,19 +101,19 @@ function cp_files() {
 	# resize emmc/sdcard partition
 	resize_partition
 
-    # ADD modprobe parameter for VIP9000 NPU module "galcore" modprobe using
-    FILE_GALCORE_ARG="${DISKOUT}/etc/modprobe.d/galcore.conf"
+	# ADD modprobe parameter for VIP9000 NPU module "galcore" modprobe using
+	FILE_GALCORE_ARG="${DISKOUT}/etc/modprobe.d/galcore.conf"
 	if [ ! -d ${DISKOUT}/etc/modprobe.d ]; then
 		mkdir -p ${DISKOUT}/etc/modprobe.d
 	fi
-    echo 'options galcore recovery=0 powerManagement=0 showArgs=1 irqLine=197 contiguousBase=0x78000000 contiguousSize=0x8000000' > ${FILE_GALCORE_ARG}
+	echo 'options galcore recovery=0 powerManagement=0 showArgs=1 irqLine=197 contiguousBase=0x78000000 contiguousSize=0x8000000' > ${FILE_GALCORE_ARG}
 
-    # for VC8000 V4L2 vsi daemon
-    cp -rf prebuilt/vsi/vsidaemon ${DISKOUT}/usr/bin
+	# for VC8000 V4L2 vsi daemon
+	cp -rf prebuilt/vsi/vsidaemon ${DISKOUT}/usr/bin
 
-    # suspend
-    cp ${DISKZ}etc/rc.suspend ${DISKOUT}/etc/rc.suspend
-    cp ${DISKZ}etc/udev/rules.d/99-custom-suspend.rules ${DISKOUT}/etc/udev/rules.d/99-custom-suspend.rules
+	# suspend
+	cp ${DISKZ}etc/rc.suspend ${DISKOUT}/etc/rc.suspend
+	cp ${DISKZ}etc/udev/rules.d/99-custom-suspend.rules ${DISKOUT}/etc/udev/rules.d/99-custom-suspend.rules
 
 	if [ -d prebuilt/udev ]; then
 		cp -av prebuilt/udev/lib/* $DISKOUT/lib
@@ -180,7 +173,7 @@ fi
 
 if [ "${ROOTFS_CONTENT}" = "BUILDROOT" ]; then
 
-    if [ -f "${DISKLIB}/os-release" ]; then
+	if [ -f "${DISKLIB}/os-release" ]; then
 		# Remove default config of getty@.service.d
 		if [ -d "${DISKOUT}/usr/lib/systemd/system/getty@.service.d" ]; then
 			rm -rf "${DISKOUT}/usr/lib/systemd/system/getty@.service.d"
@@ -194,20 +187,20 @@ if [ "${ROOTFS_CONTENT}" = "BUILDROOT" ]; then
 		ln -s /usr/lib/systemd/system/getty@.service getty@tty3.service
 		cd -
 		cp_files
-    fi
+	fi
 	exit 0
 
 elif [ "${ROOTFS_CONTENT}" = "BUSYBOX" ]; then
-    #suspend/resume disable wlan0.
-    if [ -d ${DISKOUT} ]; then
-        if [ ! -f "${DISKOUT}/bin/suspend_closewifi" ]; then
-            cp -rf prebuilt/suspend/suspend_closewifi ${DISKOUT}/bin
-            sed -i '/\/bin\/echo "End of \$0"/ { x; s|^|/bin/suspend_closewifi \&\n|; G}' ${DISKOUT}/etc/init.d/rcS
-        fi
-    fi
+	#suspend/resume disable wlan0.
+	if [ -d ${DISKOUT} ]; then
+		if [ ! -f "${DISKOUT}/bin/suspend_closewifi" ]; then
+		cp -rf prebuilt/suspend/suspend_closewifi ${DISKOUT}/bin
+		sed -i '/\/bin\/echo "End of \$0"/ { x; s|^|/bin/suspend_closewifi \&\n|; G}' ${DISKOUT}/etc/init.d/rcS
+		fi
+	fi
 
 elif [ "${ROOTFS_CONTENT:0:5}" = "YOCTO" ]; then
-    if [ -f "${DISKOUT}/usr/lib/os-release" ]; then
+	if [ -f "${DISKOUT}/usr/lib/os-release" ]; then
 		cp_files
 	fi
 	exit 0
@@ -220,12 +213,12 @@ elif [ "${ROOTFS_CONTENT:0:6}" = "UBUNTU" ]; then
 	if [ -f "${DISKOUT}/etc/lsb-release" ]; then
 		DISTRIB_ID=$(grep '^DISTRIB_ID=' "${DISKOUT}/etc/lsb-release" | awk -F '=' '{print $2}')
 		if [ "${DISTRIB_ID}" = "Ubuntu" ]; then
-            if [ "${OVERLAYFS}" = "1" ]; then
-                # for overlayfs
-                replace_sbin_init "/lib/systemd/systemd"
-                # resize emmc/sdcard partition
-                resize_partition
-            fi
+			if [ "${OVERLAYFS}" = "1" ]; then
+				# for overlayfs
+				replace_sbin_init "/lib/systemd/systemd"
+				# resize emmc/sdcard partition
+				resize_partition
+			fi
 			exit 0
 		fi
 		rm -rf "${DISKOUT}"
@@ -266,7 +259,7 @@ elif [ "${ROOTFS_CONTENT:0:6}" = "UBUNTU" ]; then
 		pv -prb "${rootfs_src_dir}/${rootfs_archive}"* | $tar_cmd - -C "${DISKOUT}"
 	else
 		cat "${rootfs_src_dir}/${rootfs_archive}"* | $tar_cmd - -C "${DISKOUT}"
-        fi
+	fi
 	if [ $? -ne 0 ]; then
 		exit 1
 	fi
@@ -391,8 +384,8 @@ else
 		do
 			mime_type=$(file -b --mime-type $f)
 			if [ "$mime_type" = "application/x-sharedlib" ] ||
-			   [ "$mime_type" = "application/x-executable" ] ||
-			   [ "$mime_type" = "application/x-pie-executable" ]; then
+				[ "$mime_type" = "application/x-executable" ] ||
+				[ "$mime_type" = "application/x-pie-executable" ]; then
 				strip_files+=" $f"
 			fi
 		done
@@ -430,7 +423,7 @@ cat <<EOF > ${DISKOUT}/etc/init.d/rc.init
 #!/bin/sh
 $(echo -e "$1" | sed 's/^[ \t]*//') 
 umount -l /rom
-rm -rf /overlay /rom
+# rm -rf /overlay /rom
 EOF
 
 }

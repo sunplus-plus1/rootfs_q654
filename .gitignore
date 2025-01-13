@@ -2,6 +2,7 @@
 *.bak
 *.o
 rootfs.img
+overlay
 disk/
 extra/
 busybox-*/
