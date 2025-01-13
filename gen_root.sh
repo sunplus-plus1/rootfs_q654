@@ -25,11 +25,16 @@ if [ "$1" = "EMMC" ]; then
 	diskdir_sz=`du -sb $WORK_DIR | cut -f1`
 	echo "rootfs total size = $diskdir_sz bytes"
 
-    if [ "$OVERLAYFS" == "1" ]; then
+	if [ "$OVERLAYFS" == "1" ]; then
 		#########################  squashfs fs #####################
-	    echo -e  "\E[1;33m ========make squashfs fs========== \E[0m"
+		echo -e  "\E[1;33m ========make squashfs fs========== \E[0m"
 		$FAKEROOT /bin/bash -c "./tools/setting_attr.py $WORK_DIR ./initramfs/.tmp/attr.list; mksquashfs $WORK_DIR $OUT_IMG "
-    else
+		OVERLAYSIZE=200
+		echo "fallocate -l ${OVERLAYSIZE}M $OVERLAY"
+		fallocate -l ${OVERLAYSIZE}M $OVERLAY
+		dd if=/dev/zero of=$OVERLAY bs=1M count=0 seek=${OVERLAYSIZE}
+		mkfs.ext4 $OVERLAY
+	else
 		# Assume 40% +20MB overhead for creating ext4 fs.
 		diskdir_sz=$((diskdir_sz*14/10))
 		EXT_SIZE=$((diskdir_sz/1024/1024+20))
@@ -54,13 +59,12 @@ elif [ "$1" = "NAND" -o "$1" = "PNAND" ]; then
 #mkfs.ubifs+ubinize+nand write: the rootfs size is fixed in ubi.cfg that used in ubinize function. this
 #                               can use the nand write cmd to write dat into nand, no need do something in uboot.
 
-    NAND_PAGESIZE=$(($3*1024))
-    NAND_BLK_PAGESIZE=$4
+	NAND_PAGESIZE=$(($3*1024))
+	NAND_BLK_PAGESIZE=$4
 	NAND_BLK_SIZE=$NAND_BLK_PAGESIZE*$NAND_PAGESIZE  # size = blockcnt*2048
 	UBINIZE=./tools/ubinize
 	UBI_CFG=./ubi.cfg
 
-	echo -e  "\E[1;33m ========make ubi fs========== \E[0m"
 	MKFS_UBIFS="fakeroot -- mkfs.ubifs"
 
 	MAX_ERASE_BLK_CNT=$((($2*1024)/($3*$4)/1024*1015))
@@ -75,20 +79,24 @@ elif [ "$1" = "NAND" -o "$1" = "PNAND" ]; then
 		exit 1
 	fi
 
-	echo "$MKFS_UBIFS -r $WORK_DIR -m $NAND_PAGESIZE -e $(($NAND_LOGIC_REASE_SIZE)) -c $MAX_ERASE_BLK_CNT -F -o $OUT_IMG"
-
-    if [ "$OVERLAYFS" == "1" ] && [ "$1" = "NAND" ]; then
+	if [ "$OVERLAYFS" == "1" ] && [ "$1" = "NAND" ]; then
 		#########################  squashfs fs #####################
-	    echo -e  "\E[1;33m ========make squashfs fs========== \E[0m"
-        echo "$FAKEROOT /bin/bash -c \"mksquashfs $WORK_DIR $OUT_IMG \""
-		$FAKEROOT /bin/bash -c "mksquashfs $WORK_DIR $OUT_IMG -noappend"
-		mkdir empty
+		echo -e  "\E[1;33m ========make squashfs fs========== \E[0m"
+		echo "$FAKEROOT /bin/bash -c \"mksquashfs $WORK_DIR $OUT_IMG -all-root\""
+		$FAKEROOT /bin/bash -c "mksquashfs $WORK_DIR $OUT_IMG -all-root"
+		
+		echo -e  "\E[1;33m ========make ubi fs========== \E[0m"
+		mkdir -p empty/upper
+		mkdir -p empty/work
+		echo "$MKFS_UBIFS -r empty -m $NAND_PAGESIZE -e $(($NAND_LOGIC_REASE_SIZE)) -c $MAX_ERASE_BLK_CNT -F -o $OVERLAY"
 		$MKFS_UBIFS -r empty -m $NAND_PAGESIZE -e $(($NAND_LOGIC_REASE_SIZE)) -c $MAX_ERASE_BLK_CNT -F -o $OVERLAY
 		[ "$?" != "0" ] && exit 1
 		rm -rf empty
 	else
+		echo -e  "\E[1;33m ========make ubi fs========== \E[0m"
+		echo "$MKFS_UBIFS -r $WORK_DIR -m $NAND_PAGESIZE -e $(($NAND_LOGIC_REASE_SIZE)) -c $MAX_ERASE_BLK_CNT -F -o $OUT_IMG"
 		$MKFS_UBIFS -r $WORK_DIR -m $NAND_PAGESIZE -e $(($NAND_LOGIC_REASE_SIZE)) -c $MAX_ERASE_BLK_CNT -F -o $OUT_IMG
-    fi
+	fi
 
 	if [ "$1" = "ZEBU_PNAND" ]; then #mkfs.ubifs+ubinize is used to paranand boot in zebu
 
