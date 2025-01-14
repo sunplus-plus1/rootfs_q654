@@ -25,7 +25,7 @@ change_NPU_attr() {
 start_remote_proc
 change_NPU_attr
 
-umount -l /rom
+# umount -l /rom
 # rm -rf /overlay /rom
 
 echo "Initialization tasks completed."
