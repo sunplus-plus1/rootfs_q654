@@ -422,7 +422,7 @@ function set_rc_init() {
 cat <<EOF > ${DISKOUT}/etc/init.d/rc.init
 #!/bin/sh
 $(echo -e "$1" | sed 's/^[ \t]*//') 
-umount -l /rom
+# umount -l /rom
 # rm -rf /overlay /rom
 EOF
 
