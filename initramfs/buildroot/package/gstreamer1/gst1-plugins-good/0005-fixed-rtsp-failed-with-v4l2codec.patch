@@ -1,7 +1,7 @@
-diff -uNr gst-plugins-good-1.22.9.a/sys/v4l2/gstv4l2videoenc.c gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2videoenc.c
---- gst-plugins-good-1.22.9.a/sys/v4l2/gstv4l2videoenc.c	2025-01-08 15:29:45.026413395 +0800
-+++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2videoenc.c	2025-01-08 15:37:11.592146045 +0800
-@@ -553,13 +553,6 @@
+diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2videoenc.c gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2videoenc.c
+--- gst-plugins-good-1.22.9/sys/v4l2/gstv4l2videoenc.c	2025-01-23 14:47:02.409115988 +0800
++++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2videoenc.c	2025-01-23 14:46:15.621262321 +0800
+@@ -554,13 +554,6 @@
    GST_DEBUG_OBJECT (self, "Negotiating %s profile and level.",
        klass->codec_name);
  
@@ -15,7 +15,7 @@ diff -uNr gst-plugins-good-1.22.9.a/sys/v4l2/gstv4l2videoenc.c gst-plugins-good-
    /* Only renegotiate on upstream changes */
    if (self->input_state)
      return TRUE;
-@@ -567,6 +560,13 @@
+@@ -568,6 +561,13 @@
    if (!codec)
      goto done;
  
@@ -29,7 +29,7 @@ diff -uNr gst-plugins-good-1.22.9.a/sys/v4l2/gstv4l2videoenc.c gst-plugins-good-
    allowed_caps = gst_pad_get_allowed_caps (GST_VIDEO_ENCODER_SRC_PAD (encoder));
  
    if (allowed_caps) {
-@@ -689,6 +689,18 @@
+@@ -690,6 +690,18 @@
      if (cpool)
        gst_object_unref (cpool);
    }
@@ -48,7 +48,7 @@ diff -uNr gst-plugins-good-1.22.9.a/sys/v4l2/gstv4l2videoenc.c gst-plugins-good-
    if (ret != GST_FLOW_OK)
      goto beach;
  
-@@ -891,6 +903,11 @@
+@@ -892,6 +904,11 @@
  
      {
        GstBufferPool *opool = gst_v4l2_object_get_buffer_pool (self->v4l2output);
@@ -60,7 +60,7 @@ diff -uNr gst-plugins-good-1.22.9.a/sys/v4l2/gstv4l2videoenc.c gst-plugins-good-
        ret = gst_v4l2_buffer_pool_process (GST_V4L2_BUFFER_POOL (opool),
            &frame->input_buffer, &frame->system_frame_number);
        if (opool)
-@@ -1154,6 +1171,8 @@
+@@ -1155,6 +1172,8 @@
        GST_OBJECT (GST_VIDEO_ENCODER_SRC_PAD (self)),
        V4L2_BUF_TYPE_VIDEO_CAPTURE, klass->default_device,
        gst_v4l2_get_input, gst_v4l2_set_input, NULL);
@@ -69,9 +69,9 @@ diff -uNr gst-plugins-good-1.22.9.a/sys/v4l2/gstv4l2videoenc.c gst-plugins-good-
  }
  
  static void
-diff -uNr gst-plugins-good-1.22.9.a/sys/v4l2/gstv4l2videoenc.h gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2videoenc.h
---- gst-plugins-good-1.22.9.a/sys/v4l2/gstv4l2videoenc.h	2025-01-08 15:29:45.026413395 +0800
-+++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2videoenc.h	2025-01-08 15:36:21.955372663 +0800
+diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2videoenc.h gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2videoenc.h
+--- gst-plugins-good-1.22.9/sys/v4l2/gstv4l2videoenc.h	2025-01-23 14:47:02.409115988 +0800
++++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2videoenc.h	2025-01-23 14:46:15.621262321 +0800
 @@ -67,6 +67,7 @@
    GstFlowReturn output_flow;
  
