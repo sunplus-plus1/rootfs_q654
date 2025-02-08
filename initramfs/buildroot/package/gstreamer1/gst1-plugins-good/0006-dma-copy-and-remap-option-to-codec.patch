@@ -1,6 +1,6 @@
 diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2bufferpool.c gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2bufferpool.c
 --- gst-plugins-good-1.22.9/sys/v4l2/gstv4l2bufferpool.c	2024-01-25 02:21:13.000000000 +0800
-+++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2bufferpool.c	2025-02-07 10:00:45.633129282 +0800
++++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2bufferpool.c	2025-02-08 17:32:37.559179166 +0800
 @@ -134,6 +134,91 @@
    }
  }
@@ -119,7 +119,95 @@ diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2bufferpool.c gst-plugins-good-
    /* Ignore timestamp and field for OUTPUT device */
    if (V4L2_TYPE_IS_OUTPUT (obj->type))
      goto done;
-@@ -2315,3 +2410,59 @@
+@@ -1872,6 +1967,24 @@
+ }
+ 
+ /**
++ * For disable_capture_copy use
++ */
++typedef struct {
++  GstBuffer *buf;
++  GstBufferPool *bpool;
++  GstMapInfo map;
++} NotifyData;
++
++static void _notify( gpointer user_data){
++  NotifyData *n_data = (NotifyData*)user_data;
++
++  gst_buffer_unmap(n_data->buf, &n_data->map);
++  gst_v4l2_buffer_pool_complete_release_buffer(n_data->bpool, n_data->buf, FALSE);
++
++  g_free(n_data);
++}
++
++/**
+  * gst_v4l2_buffer_pool_process:
+  * @bpool: a #GstBufferPool
+  * @buf: a #GstBuffer, maybe be replaced
+@@ -1953,14 +2066,16 @@
+                   goto done;
+               }
+ 
+-              /* copy the buffer */
+-              copy = gst_buffer_copy_region (*buf,
+-                  GST_BUFFER_COPY_ALL | GST_BUFFER_COPY_DEEP, 0, -1);
+-              GST_LOG_OBJECT (pool, "copy buffer %p->%p", *buf, copy);
+-
+-              /* and requeue so that we can continue capturing */
+-              gst_buffer_unref (*buf);
+-              *buf = copy;
++              if(!obj->disable_capture_copy){
++                /* copy the buffer */
++                copy = gst_buffer_copy_region (*buf,
++                    GST_BUFFER_COPY_ALL | GST_BUFFER_COPY_DEEP, 0, -1);
++                GST_LOG_OBJECT (pool, "copy buffer %p->%p", *buf, copy);
++
++                /* and requeue so that we can continue capturing */
++                gst_buffer_unref (*buf);
++                *buf = copy;
++              }
+             }
+ 
+             ret = GST_FLOW_OK;
+@@ -1984,10 +2099,34 @@
+             }
+           }
+ 
+-          ret = gst_v4l2_buffer_pool_copy_buffer (pool, *buf, tmp);
++          if(!obj->disable_capture_copy){
++            ret = gst_v4l2_buffer_pool_copy_buffer (pool, *buf, tmp);
++
++            /* an queue the buffer again after the copy */
++            gst_v4l2_buffer_pool_complete_release_buffer (bpool, tmp, FALSE);
++          }
++          else{
++            NotifyData *udata = g_new0 (NotifyData, 1);
++
++            udata->buf = tmp;
++            udata->bpool = bpool;
++
++            GST_DEBUG_OBJECT (pool, "use dma buffer");
++
++            if (!gst_buffer_map (tmp, &udata->map, GST_MAP_READ))
++              goto copy_failed;
+ 
+-          /* an queue the buffer again after the copy */
+-          gst_v4l2_buffer_pool_complete_release_buffer (bpool, tmp, FALSE);
++            GstBuffer *dest = gst_buffer_new_wrapped_full(0,
++                udata->map.data, udata->map.size, 0, udata->map.size, udata, _notify);
++
++            gst_buffer_resize (dest, 0, gst_buffer_get_size (tmp));
++
++            gst_buffer_copy_into (dest, tmp,
++                GST_BUFFER_COPY_FLAGS | GST_BUFFER_COPY_TIMESTAMPS, 0, -1);
++
++            gst_buffer_unref (*buf);
++           *buf = dest;
++          }
+ 
+           if (ret != GST_FLOW_OK)
+             goto copy_failed;
+@@ -2315,3 +2454,59 @@
  {
    gst_v4l2_object_subscribe_event (pool->obj, V4L2_EVENT_SOURCE_CHANGE);
  }
@@ -207,6 +295,73 @@ diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2bufferpool.h gst-plugins-good-
  #define GST_TYPE_V4L2_BUFFER_POOL      (gst_v4l2_buffer_pool_get_type())
  #define GST_IS_V4L2_BUFFER_POOL(obj)   (G_TYPE_CHECK_INSTANCE_TYPE ((obj), GST_TYPE_V4L2_BUFFER_POOL))
  #define GST_V4L2_BUFFER_POOL(obj)      (G_TYPE_CHECK_INSTANCE_CAST ((obj), GST_TYPE_V4L2_BUFFER_POOL, GstV4l2BufferPool))
+diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2h264enc.c gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2h264enc.c
+--- gst-plugins-good-1.22.9/sys/v4l2/gstv4l2h264enc.c	2025-02-07 09:59:48.561306333 +0800
++++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2h264enc.c	2025-02-08 17:33:13.764876036 +0800
+@@ -360,7 +360,7 @@
+ 
+ 
+   g_object_class_install_property (gobject_class, PROP_BITRATE,
+-		g_param_spec_uint ("bitrate", "Bitrate", "Bitrate in kbit/sec", 1,
++		g_param_spec_uint ("bitrate", "Bitrate", "Bitrate (in bits per second)", 1,
+ 			G_MAXUINT, GST_V4L2_H264_ENC_BITRATE_DEFAULT,
+ 			(GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+   g_object_class_install_property (gobject_class, PROP_RC_MODE,
+@@ -375,12 +375,12 @@
+             0, G_MAXINT, GST_V4L2_H264_ENC_GOP_SIZE_DEFAULT,
+             (GParamFlags) (GST_PARAM_CONDITIONALLY_AVAILABLE |
+                 G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+-  g_object_class_install_property (gobject_class, PROP_B_FRAMES,
+-	    g_param_spec_uint ("bframes", "B frames",
+-	        "Number of B-frames between I and P", 0, G_MAXUINT,
+-	        GST_V4L2_H264_ENC_B_FRAMES_DEFAULT,
+-	        (GParamFlags) (GST_PARAM_CONDITIONALLY_AVAILABLE |
+-	            G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
++//  g_object_class_install_property (gobject_class, PROP_B_FRAMES,
++//	    g_param_spec_uint ("bframes", "B frames",
++//	        "Number of B-frames between I and P", 0, G_MAXUINT,
++//	        GST_V4L2_H264_ENC_B_FRAMES_DEFAULT,
++//	        (GParamFlags) (GST_PARAM_CONDITIONALLY_AVAILABLE |
++//	            G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+   g_object_class_install_property (gobject_class, PROP_QP,
+ 	    g_param_spec_uint ("qp", "Quantization parameter",
+ 	        "The encoding quality", 0, 51,
+@@ -411,12 +411,12 @@
+             GST_V4L2_H264_ENC_QP_P_DEFAULT,
+             (GParamFlags) (GST_PARAM_CONDITIONALLY_AVAILABLE |
+                 G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+-  g_object_class_install_property (gobject_class, PROP_B_FRAME_QP,
+-        g_param_spec_uint ("qp-b", "QP B",
+-            "QP applied to B frames", 0, 51,
+-            GST_V4L2_H264_ENC_QP_B_DEFAULT,
+-            (GParamFlags) (GST_PARAM_CONDITIONALLY_AVAILABLE |
+-                G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
++//  g_object_class_install_property (gobject_class, PROP_B_FRAME_QP,
++//        g_param_spec_uint ("qp-b", "QP B",
++//            "QP applied to B frames", 0, 51,
++//            GST_V4L2_H264_ENC_QP_B_DEFAULT,
++//            (GParamFlags) (GST_PARAM_CONDITIONALLY_AVAILABLE |
++//                G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+   g_object_class_install_property (gobject_class, PROP_FROCE_KEY,
+         g_param_spec_boolean ("froce-key", "Froce key",
+             "Froce encode from key frame",
+@@ -427,6 +427,7 @@
+             "Add idr to each key frame",
+             FALSE,
+             G_PARAM_WRITABLE | G_PARAM_STATIC_STRINGS));
++  #if 0
+   g_object_class_install_property (gobject_class, PROP_ENTROPY_MODE,
+         g_param_spec_boolean ("cabac", "Use CABAC",
+             "Enable CABAC entropy coding",
+@@ -482,7 +483,7 @@
+ 	        GST_V4L2_H264_ENC_VUI_SAR_IDC_DEFAULT,
+ 	        (GParamFlags) (GST_PARAM_CONDITIONALLY_AVAILABLE |
+ 	            G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+-
++#endif
+   baseclass->codec_name = "H264";
+ }
+ 
 diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2object.c gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2object.c
 --- gst-plugins-good-1.22.9/sys/v4l2/gstv4l2object.c	2025-02-07 10:00:11.761234361 +0800
 +++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2object.c	2025-02-07 10:00:45.633129282 +0800
@@ -296,8 +451,8 @@ diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2object.c gst-plugins-good-1.22
  
 diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2object.h gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2object.h
 --- gst-plugins-good-1.22.9/sys/v4l2/gstv4l2object.h	2025-02-07 10:00:11.761234361 +0800
-+++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2object.h	2025-02-07 10:00:45.633129282 +0800
-@@ -229,6 +229,12 @@
++++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2object.h	2025-02-08 17:33:26.260028308 +0800
+@@ -229,6 +229,13 @@
     * on slow USB firmwares. When this is set, gst_v4l2_set_format() will modify
     * the caps to reflect what was negotiated during fixation */
    gboolean skip_try_fmt_probes;
@@ -307,10 +462,11 @@ diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2object.h gst-plugins-good-1.22
 +  int exp_fd[VIDEO_MAX_FRAME+1];
 +
 +  gboolean remap_sync;
++  gboolean disable_capture_copy;
  };
  
  struct _GstV4l2ObjectClassHelper {
-@@ -253,7 +259,8 @@
+@@ -253,7 +260,8 @@
      PROP_CAPTURE_IO_MODE,     \
      PROP_EXTRA_CONTROLS,      \
      PROP_PIXEL_ASPECT_RATIO,  \
@@ -322,18 +478,19 @@ diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2object.h gst-plugins-good-1.22
  GstV4l2Object*  gst_v4l2_object_new       (GstElement * element,
 diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2videodec.c gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2videodec.c
 --- gst-plugins-good-1.22.9/sys/v4l2/gstv4l2videodec.c	2025-02-07 10:00:11.765234348 +0800
-+++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2videodec.c	2025-02-07 10:00:45.637129270 +0800
-@@ -58,8 +58,8 @@
++++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2videodec.c	2025-02-08 17:33:59.413046446 +0800
+@@ -58,8 +58,9 @@
  enum
  {
    PROP_0,
 +  V4L2_STD_OBJECT_PROPS,
    PROP_V4L2_EXTERN_BUFFER,
 -  V4L2_STD_OBJECT_PROPS
++  PROP_CAPTURE_COPY_DISABLE,
  };
  
  #define gst_v4l2_video_dec_parent_class parent_class
-@@ -82,10 +82,13 @@
+@@ -82,10 +83,15 @@
        }
        break;
      case PROP_V4L2_EXTERN_BUFFER:
@@ -344,6 +501,8 @@ diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2videodec.c gst-plugins-good-1.
 +      self->use_extern_buffer = g_value_get_boolean(value);
 +      self->v4l2capture->extern_buffer = self->use_extern_buffer;
 +      break;
++    case PROP_CAPTURE_COPY_DISABLE:
++      self->v4l2capture->disable_capture_copy = g_value_get_boolean(value);
 +    case PROP_REMAP_SYNC:
 +      self->v4l2capture->remap_sync = g_value_get_boolean (value);
 +      self->v4l2output->remap_sync = g_value_get_boolean (value);
@@ -351,16 +510,30 @@ diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2videodec.c gst-plugins-good-1.
  
        /* By default, only set on output */
      default:
-@@ -1292,8 +1295,7 @@
+@@ -1292,8 +1298,8 @@
        V4L2_BUF_TYPE_VIDEO_CAPTURE, klass->default_device,
        gst_v4l2_get_input, gst_v4l2_set_input, NULL);
  
 -  if(self->v4l2capture)
 -    self->v4l2capture->extern_buffer = self->use_extern_buffer;
 +  self->v4l2capture->extern_buffer = self->use_extern_buffer;
++  self->v4l2capture->disable_capture_copy = FALSE;
  }
  
  static void
+@@ -1351,6 +1357,12 @@
+             FALSE,
+             G_PARAM_WRITABLE | G_PARAM_STATIC_STRINGS));
+ 
++  g_object_class_install_property (gobject_class, PROP_CAPTURE_COPY_DISABLE,
++        g_param_spec_boolean ("disable-capture-copy", "Disable Capture Copy",
++            "Push the capture buffer back directly instead copy it to the CPU buffer",
++            FALSE,
++            G_PARAM_WRITABLE | G_PARAM_STATIC_STRINGS));
++
+   gst_v4l2_object_install_m2m_properties_helper (gobject_class);
+ }
+ 
 diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2videoenc.c gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2videoenc.c
 --- gst-plugins-good-1.22.9/sys/v4l2/gstv4l2videoenc.c	2025-02-07 10:00:18.985211950 +0800
 +++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2videoenc.c	2025-02-07 10:01:15.800828077 +0800
