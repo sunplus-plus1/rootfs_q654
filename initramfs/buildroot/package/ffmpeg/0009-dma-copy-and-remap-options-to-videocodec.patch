@@ -1,6 +1,6 @@
 diff -uNr ffmpeg-4.4.4/libavcodec/allcodecs.c ffmpeg-4.4.4.b/libavcodec/allcodecs.c
---- ffmpeg-4.4.4/libavcodec/allcodecs.c	2025-02-07 10:59:18.098232829 +0800
-+++ ffmpeg-4.4.4.b/libavcodec/allcodecs.c	2025-02-07 10:59:41.862159108 +0800
+--- ffmpeg-4.4.4/libavcodec/allcodecs.c	2025-02-12 15:17:20.862041347 +0800
++++ ffmpeg-4.4.4.b/libavcodec/allcodecs.c	2025-02-12 15:18:09.981888966 +0800
 @@ -925,7 +925,8 @@
      const AVCodec *p, *experimental = NULL;
      void *i = 0;
@@ -22,7 +22,7 @@ diff -uNr ffmpeg-4.4.4/libavcodec/allcodecs.c ffmpeg-4.4.4.b/libavcodec/allcodec
              continue;
 diff -uNr ffmpeg-4.4.4/libavcodec/v4l2_buffers.c ffmpeg-4.4.4.b/libavcodec/v4l2_buffers.c
 --- ffmpeg-4.4.4/libavcodec/v4l2_buffers.c	2023-04-02 23:21:32.000000000 +0800
-+++ ffmpeg-4.4.4.b/libavcodec/v4l2_buffers.c	2025-02-07 10:59:41.862159108 +0800
++++ ffmpeg-4.4.4.b/libavcodec/v4l2_buffers.c	2025-02-12 15:18:09.981888966 +0800
 @@ -34,6 +34,13 @@
  #include "v4l2_buffers.h"
  #include "v4l2_m2m.h"
@@ -140,8 +140,8 @@ diff -uNr ffmpeg-4.4.4/libavcodec/v4l2_buffers.c ffmpeg-4.4.4.b/libavcodec/v4l2_
      /* these values are updated also during re-init in v4l2_process_driver_event */
      frame->height = avbuf->context->height;
 diff -uNr ffmpeg-4.4.4/libavcodec/v4l2_context.c ffmpeg-4.4.4.b/libavcodec/v4l2_context.c
---- ffmpeg-4.4.4/libavcodec/v4l2_context.c	2025-02-07 10:59:06.246269596 +0800
-+++ ffmpeg-4.4.4.b/libavcodec/v4l2_context.c	2025-02-07 10:59:41.862159108 +0800
+--- ffmpeg-4.4.4/libavcodec/v4l2_context.c	2025-02-12 15:17:11.866069255 +0800
++++ ffmpeg-4.4.4.b/libavcodec/v4l2_context.c	2025-02-12 15:18:09.981888966 +0800
 @@ -713,6 +713,16 @@
  
  int ff_v4l2_context_set_format(V4L2Context* ctx)
@@ -170,7 +170,7 @@ diff -uNr ffmpeg-4.4.4/libavcodec/v4l2_context.c ffmpeg-4.4.4.b/libavcodec/v4l2_
          req.count,
 diff -uNr ffmpeg-4.4.4/libavcodec/v4l2_context.h ffmpeg-4.4.4.b/libavcodec/v4l2_context.h
 --- ffmpeg-4.4.4/libavcodec/v4l2_context.h	2023-04-13 02:01:50.000000000 +0800
-+++ ffmpeg-4.4.4.b/libavcodec/v4l2_context.h	2025-02-07 10:59:41.866159096 +0800
++++ ffmpeg-4.4.4.b/libavcodec/v4l2_context.h	2025-02-12 15:18:09.981888966 +0800
 @@ -92,6 +92,12 @@
       */
      int done;
@@ -185,8 +185,8 @@ diff -uNr ffmpeg-4.4.4/libavcodec/v4l2_context.h ffmpeg-4.4.4.b/libavcodec/v4l2_
  
  /**
 diff -uNr ffmpeg-4.4.4/libavcodec/v4l2_m2m.c ffmpeg-4.4.4.b/libavcodec/v4l2_m2m.c
---- ffmpeg-4.4.4/libavcodec/v4l2_m2m.c	2025-02-07 10:59:06.246269596 +0800
-+++ ffmpeg-4.4.4.b/libavcodec/v4l2_m2m.c	2025-02-07 10:59:41.866159096 +0800
+--- ffmpeg-4.4.4/libavcodec/v4l2_m2m.c	2025-02-12 15:17:11.870069243 +0800
++++ ffmpeg-4.4.4.b/libavcodec/v4l2_m2m.c	2025-02-12 15:18:09.985888953 +0800
 @@ -66,6 +66,7 @@
      void *log_ctx = s->avctx;
      int ret;
@@ -196,8 +196,8 @@ diff -uNr ffmpeg-4.4.4/libavcodec/v4l2_m2m.c ffmpeg-4.4.4.b/libavcodec/v4l2_m2m.
      s->capture.name = "capture";
      s->output.name = "output";
 diff -uNr ffmpeg-4.4.4/libavcodec/v4l2_m2m.h ffmpeg-4.4.4.b/libavcodec/v4l2_m2m.h
---- ffmpeg-4.4.4/libavcodec/v4l2_m2m.h	2025-02-07 10:59:11.302253911 +0800
-+++ ffmpeg-4.4.4.b/libavcodec/v4l2_m2m.h	2025-02-07 11:00:39.029117722 +0800
+--- ffmpeg-4.4.4/libavcodec/v4l2_m2m.h	2025-02-12 15:17:16.426055109 +0800
++++ ffmpeg-4.4.4.b/libavcodec/v4l2_m2m.h	2025-02-12 15:18:09.985888953 +0800
 @@ -78,6 +78,13 @@
      int num_capture_buffers;
  
@@ -213,8 +213,8 @@ diff -uNr ffmpeg-4.4.4/libavcodec/v4l2_m2m.h ffmpeg-4.4.4.b/libavcodec/v4l2_m2m.
  
  /**
 diff -uNr ffmpeg-4.4.4/libavcodec/v4l2_m2m_dec.c ffmpeg-4.4.4.b/libavcodec/v4l2_m2m_dec.c
---- ffmpeg-4.4.4/libavcodec/v4l2_m2m_dec.c	2025-02-07 10:59:06.246269596 +0800
-+++ ffmpeg-4.4.4.b/libavcodec/v4l2_m2m_dec.c	2025-02-07 10:59:41.866159096 +0800
+--- ffmpeg-4.4.4/libavcodec/v4l2_m2m_dec.c	2025-02-12 15:17:11.870069243 +0800
++++ ffmpeg-4.4.4.b/libavcodec/v4l2_m2m_dec.c	2025-02-12 15:18:09.985888953 +0800
 @@ -197,7 +197,14 @@
      }
  
@@ -241,8 +241,8 @@ diff -uNr ffmpeg-4.4.4/libavcodec/v4l2_m2m_dec.c ffmpeg-4.4.4.b/libavcodec/v4l2_
  };
  
 diff -uNr ffmpeg-4.4.4/libavcodec/v4l2_m2m_enc.c ffmpeg-4.4.4.b/libavcodec/v4l2_m2m_enc.c
---- ffmpeg-4.4.4/libavcodec/v4l2_m2m_enc.c	2025-02-07 10:59:11.302253911 +0800
-+++ ffmpeg-4.4.4.b/libavcodec/v4l2_m2m_enc.c	2025-02-07 11:01:35.323110470 +0800
+--- ffmpeg-4.4.4/libavcodec/v4l2_m2m_enc.c	2025-02-12 15:17:16.426055109 +0800
++++ ffmpeg-4.4.4.b/libavcodec/v4l2_m2m_enc.c	2025-02-12 15:18:20.587289487 +0800
 @@ -188,6 +188,7 @@
  static int v4l2_prepare_encoder(V4L2m2mContext *s)
  {
@@ -251,11 +251,11 @@ diff -uNr ffmpeg-4.4.4/libavcodec/v4l2_m2m_enc.c ffmpeg-4.4.4.b/libavcodec/v4l2_
      int qmin_cid, qmax_cid, qmin, qmax;
      int ret, val;
  
-@@ -279,6 +280,16 @@
+@@ -279,6 +280,17 @@
          qmin = 0;
          qmax = 255;
          break;
-+    case AV_CODEC_ID_MJPEG:
++    case AV_CODEC_ID_MJPEG:{
 +        struct v4l2_control ctrl = {0};
 +
 +        ctrl.id = V4L2_CID_JPEG_COMPRESSION_QUALITY;
@@ -265,10 +265,11 @@ diff -uNr ffmpeg-4.4.4/libavcodec/v4l2_m2m_enc.c ffmpeg-4.4.4.b/libavcodec/v4l2_
 +            av_log(s->avctx, AV_LOG_WARNING, "Failed to set qp level = %d %s\n", priv->fixed_qp, strerror(errno));
 +        }
 +        break;
++	}
      default:
          return 0;
      }
-@@ -320,6 +331,7 @@
+@@ -320,6 +332,7 @@
      }
  #endif
  
@@ -276,7 +277,7 @@ diff -uNr ffmpeg-4.4.4/libavcodec/v4l2_m2m_enc.c ffmpeg-4.4.4.b/libavcodec/v4l2_
      return ff_v4l2_context_enqueue_frame(output, frame);
  }
  
-@@ -344,6 +356,12 @@
+@@ -344,6 +357,12 @@
              frame = NULL;
      }
  
@@ -289,7 +290,7 @@ diff -uNr ffmpeg-4.4.4/libavcodec/v4l2_m2m_enc.c ffmpeg-4.4.4.b/libavcodec/v4l2_
      ret = v4l2_send_frame(avctx, frame);
      if (ret != AVERROR(EAGAIN))
          av_frame_unref(frame);
-@@ -461,7 +479,11 @@
+@@ -461,7 +480,11 @@
  #define V4L_M2M_CAPTURE_OPTS \
      V4L_M2M_DEFAULT_OPTS,\
      { "num_capture_buffers", "Number of buffers in the capture context", \
@@ -302,7 +303,7 @@ diff -uNr ffmpeg-4.4.4/libavcodec/v4l2_m2m_enc.c ffmpeg-4.4.4.b/libavcodec/v4l2_
  
  static const AVOption mpeg4_options[] = {
      V4L_M2M_CAPTURE_OPTS,
-@@ -469,10 +491,21 @@
+@@ -469,10 +492,21 @@
      { NULL },
  };
  
@@ -326,7 +327,7 @@ diff -uNr ffmpeg-4.4.4/libavcodec/v4l2_m2m_enc.c ffmpeg-4.4.4.b/libavcodec/v4l2_
      { NULL },
  };
  
-@@ -510,7 +543,7 @@
+@@ -510,7 +544,7 @@
  
  M2MENC(mpeg4,"MPEG4", mpeg4_options, AV_CODEC_ID_MPEG4);
  M2MENC(h263, "H.263", options,       AV_CODEC_ID_H263);
@@ -337,8 +338,8 @@ diff -uNr ffmpeg-4.4.4/libavcodec/v4l2_m2m_enc.c ffmpeg-4.4.4.b/libavcodec/v4l2_
 -M2MENC(jpeg, "JPEG",   options,     AV_CODEC_ID_MJPEG);
 +M2MENC(jpeg, "JPEG",  jpeg_options,     AV_CODEC_ID_MJPEG);
 diff -uNr ffmpeg-4.4.4/libavcodec/vaapi_h264.c ffmpeg-4.4.4.b/libavcodec/vaapi_h264.c
---- ffmpeg-4.4.4/libavcodec/vaapi_h264.c	2025-02-07 10:58:44.934335711 +0800
-+++ ffmpeg-4.4.4.b/libavcodec/vaapi_h264.c	2025-02-07 10:59:41.866159096 +0800
+--- ffmpeg-4.4.4/libavcodec/vaapi_h264.c	2025-02-12 15:16:52.838128284 +0800
++++ ffmpeg-4.4.4.b/libavcodec/vaapi_h264.c	2025-02-12 15:18:09.985888953 +0800
 @@ -314,12 +314,12 @@
      H264SliceContext *sl = &h->slice_ctx[0];
      int ret;
@@ -357,7 +358,7 @@ diff -uNr ffmpeg-4.4.4/libavcodec/vaapi_h264.c ffmpeg-4.4.4.b/libavcodec/vaapi_h
  
 diff -uNr ffmpeg-4.4.4/libavdevice/v4l2.c ffmpeg-4.4.4.b/libavdevice/v4l2.c
 --- ffmpeg-4.4.4/libavdevice/v4l2.c	2023-04-13 02:01:50.000000000 +0800
-+++ ffmpeg-4.4.4.b/libavdevice/v4l2.c	2025-02-07 10:59:41.866159096 +0800
++++ ffmpeg-4.4.4.b/libavdevice/v4l2.c	2025-02-12 15:18:09.985888953 +0800
 @@ -108,6 +108,7 @@
  struct buff_data {
      struct video_data *s;
@@ -376,7 +377,7 @@ diff -uNr ffmpeg-4.4.4/libavdevice/v4l2.c ffmpeg-4.4.4.b/libavdevice/v4l2.c
                                      buf_descriptor, 0);
 diff -uNr ffmpeg-4.4.4/libavutil/buffer.c ffmpeg-4.4.4.b/libavutil/buffer.c
 --- ffmpeg-4.4.4/libavutil/buffer.c	2023-04-13 02:01:50.000000000 +0800
-+++ ffmpeg-4.4.4.b/libavutil/buffer.c	2025-02-07 10:59:41.866159096 +0800
++++ ffmpeg-4.4.4.b/libavutil/buffer.c	2025-02-12 15:18:09.985888953 +0800
 @@ -401,3 +401,9 @@
      av_assert0(buf);
      return buf->opaque;
@@ -389,7 +390,7 @@ diff -uNr ffmpeg-4.4.4/libavutil/buffer.c ffmpeg-4.4.4.b/libavutil/buffer.c
 +}
 diff -uNr ffmpeg-4.4.4/libavutil/buffer.h ffmpeg-4.4.4.b/libavutil/buffer.h
 --- ffmpeg-4.4.4/libavutil/buffer.h	2023-04-13 02:01:50.000000000 +0800
-+++ ffmpeg-4.4.4.b/libavutil/buffer.h	2025-02-07 10:59:41.866159096 +0800
++++ ffmpeg-4.4.4.b/libavutil/buffer.h	2025-02-12 15:18:09.985888953 +0800
 @@ -347,6 +347,11 @@
  void *av_buffer_pool_buffer_get_opaque(AVBufferRef *ref);
  
