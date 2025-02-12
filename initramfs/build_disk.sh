@@ -161,7 +161,7 @@ if [ -d "${DISKOUT}" ] && [ "${OVERLAYFS}" = "1" ]; then
 		set_restore "mount -t ext4 /dev/mmcblk0p$partition /mnt"
 	fi
 	chmod 0544 ${DISKOUT}/sbin/restore
-	if [ "${ROOTFS_CONTENT}" != "BUSYBOX" ]; then
+	if [ "${ROOTFS_CONTENT}" != "BUSYBOX" ] && [ "${BOARDNAME}" == "dm" ]; then
 		cp buildroot/systemd/usr/lib/systemd/system/monitor_keys.service ${DISKOUT}${LIBPATH}/systemd/system/
 		if [ -d "${DISKOUT}/etc/systemd/system/multi-user.target.wants" ]; then
 			cd ${DISKOUT}/etc/systemd/system/multi-user.target.wants
