@@ -1,6 +1,6 @@
 diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2bufferpool.c gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2bufferpool.c
 --- gst-plugins-good-1.22.9/sys/v4l2/gstv4l2bufferpool.c	2024-01-25 02:21:13.000000000 +0800
-+++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2bufferpool.c	2025-02-12 13:48:58.034491929 +0800
++++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2bufferpool.c	2025-02-12 16:53:59.348053136 +0800
 @@ -134,6 +134,91 @@
    }
  }
@@ -269,7 +269,7 @@ diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2bufferpool.c gst-plugins-good-
 +
 diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2bufferpool.h gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2bufferpool.h
 --- gst-plugins-good-1.22.9/sys/v4l2/gstv4l2bufferpool.h	2024-01-25 02:21:13.000000000 +0800
-+++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2bufferpool.h	2025-02-12 13:48:58.034491929 +0800
++++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2bufferpool.h	2025-02-12 16:53:59.348053136 +0800
 @@ -36,6 +36,24 @@
  
  G_BEGIN_DECLS
@@ -296,8 +296,8 @@ diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2bufferpool.h gst-plugins-good-
  #define GST_IS_V4L2_BUFFER_POOL(obj)   (G_TYPE_CHECK_INSTANCE_TYPE ((obj), GST_TYPE_V4L2_BUFFER_POOL))
  #define GST_V4L2_BUFFER_POOL(obj)      (G_TYPE_CHECK_INSTANCE_CAST ((obj), GST_TYPE_V4L2_BUFFER_POOL, GstV4l2BufferPool))
 diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2h264enc.c gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2h264enc.c
---- gst-plugins-good-1.22.9/sys/v4l2/gstv4l2h264enc.c	2025-02-12 11:35:35.163318691 +0800
-+++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2h264enc.c	2025-02-12 13:48:58.034491929 +0800
+--- gst-plugins-good-1.22.9/sys/v4l2/gstv4l2h264enc.c	2025-02-12 16:50:44.228658451 +0800
++++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2h264enc.c	2025-02-12 16:53:59.348053136 +0800
 @@ -360,7 +360,7 @@
  
  
@@ -363,8 +363,8 @@ diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2h264enc.c gst-plugins-good-1.2
  }
  
 diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2object.c gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2object.c
---- gst-plugins-good-1.22.9/sys/v4l2/gstv4l2object.c	2025-02-12 11:35:47.643279972 +0800
-+++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2object.c	2025-02-12 13:49:22.677481182 +0800
+--- gst-plugins-good-1.22.9/sys/v4l2/gstv4l2object.c	2025-02-12 16:50:58.364614595 +0800
++++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2object.c	2025-02-12 16:53:59.348053136 +0800
 @@ -468,6 +468,12 @@
        g_param_spec_boxed ("extra-controls", "Extra Controls",
            "Extra v4l2 controls (CIDs) for the device",
@@ -441,8 +441,8 @@ diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2object.c gst-plugins-good-1.22
              pool = gst_object_ref (obj_pool);
  
 diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2object.h gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2object.h
---- gst-plugins-good-1.22.9/sys/v4l2/gstv4l2object.h	2025-02-12 11:35:47.643279972 +0800
-+++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2object.h	2025-02-12 13:48:58.034491929 +0800
+--- gst-plugins-good-1.22.9/sys/v4l2/gstv4l2object.h	2025-02-12 16:50:58.364614595 +0800
++++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2object.h	2025-02-12 16:53:59.348053136 +0800
 @@ -229,6 +229,13 @@
     * on slow USB firmwares. When this is set, gst_v4l2_set_format() will modify
     * the caps to reflect what was negotiated during fixation */
@@ -468,8 +468,8 @@ diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2object.h gst-plugins-good-1.22
  /* create/destroy */
  GstV4l2Object*  gst_v4l2_object_new       (GstElement * element,
 diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2videodec.c gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2videodec.c
---- gst-plugins-good-1.22.9/sys/v4l2/gstv4l2videodec.c	2025-02-12 11:35:47.647279960 +0800
-+++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2videodec.c	2025-02-12 13:48:58.034491929 +0800
+--- gst-plugins-good-1.22.9/sys/v4l2/gstv4l2videodec.c	2025-02-12 16:50:58.364614595 +0800
++++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2videodec.c	2025-02-12 16:53:59.352053124 +0800
 @@ -58,8 +58,9 @@
  enum
  {
@@ -526,17 +526,21 @@ diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2videodec.c gst-plugins-good-1.
  }
  
 diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2videoenc.c gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2videoenc.c
---- gst-plugins-good-1.22.9/sys/v4l2/gstv4l2videoenc.c	2025-02-12 13:48:31.158575300 +0800
-+++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2videoenc.c	2025-02-12 13:49:55.042506665 +0800
-@@ -54,6 +54,7 @@
+--- gst-plugins-good-1.22.9/sys/v4l2/gstv4l2videoenc.c	2025-02-12 16:53:40.364112029 +0800
++++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2videoenc.c	2025-02-12 16:54:24.581137722 +0800
+@@ -54,8 +54,11 @@
  {
    PROP_0,
    V4L2_STD_OBJECT_PROPS,
 +  PROP_USE_DMA_COPY,
  };
  
- #define PROP_USE_DMA_COPY_DEFAULT FALSE
-@@ -75,6 +76,13 @@
++#define PROP_USE_DMA_COPY_DEFAULT FALSE
++
+ #define gst_v4l2_video_enc_parent_class parent_class
+ G_DEFINE_ABSTRACT_TYPE (GstV4l2VideoEnc, gst_v4l2_video_enc,
+     GST_TYPE_VIDEO_ENCODER);
+@@ -73,6 +76,13 @@
          G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
        }
        break;
@@ -550,7 +554,7 @@ diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2videoenc.c gst-plugins-good-1.
  
        /* By default, only set on output */
      default:
-@@ -617,7 +625,7 @@
+@@ -615,7 +625,7 @@
  
    state = gst_video_encoder_get_output_state (encoder);
    s = gst_caps_get_structure (state->caps, 0);
@@ -559,7 +563,7 @@ diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2videoenc.c gst-plugins-good-1.
  
    if (codec->profile_cid)
      gst_structure_set (s, "profile", G_TYPE_STRING, ctx.profile, NULL);
-@@ -1204,6 +1212,7 @@
+@@ -1202,6 +1212,7 @@
        gst_v4l2_get_output, gst_v4l2_set_output, NULL);
    self->v4l2output->no_initial_format = TRUE;
    self->v4l2output->keep_aspect = FALSE;
@@ -567,7 +571,7 @@ diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2videoenc.c gst-plugins-good-1.
  
    self->v4l2capture = gst_v4l2_object_new (GST_ELEMENT (self),
        GST_OBJECT (GST_VIDEO_ENCODER_SRC_PAD (self)),
-@@ -1262,6 +1271,12 @@
+@@ -1260,6 +1271,12 @@
    element_class->change_state =
        GST_DEBUG_FUNCPTR (gst_v4l2_video_enc_change_state);
  
