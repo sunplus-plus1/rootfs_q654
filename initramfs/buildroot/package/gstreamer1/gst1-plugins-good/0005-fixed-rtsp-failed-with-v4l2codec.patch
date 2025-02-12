@@ -1,29 +1,7 @@
 diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2videoenc.c gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2videoenc.c
---- gst-plugins-good-1.22.9/sys/v4l2/gstv4l2videoenc.c	2025-02-12 11:35:35.167318679 +0800
-+++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2videoenc.c	2025-02-12 13:47:42.893117689 +0800
-@@ -556,16 +556,16 @@
-   GST_DEBUG_OBJECT (self, "Negotiating %s profile and level.",
-       klass->codec_name);
- 
-+  /* Only renegotiate on upstream changes */
-+  if (self->input_state)
-+    return TRUE;
-+
-   if(klass->set_option){
-     if (!klass->set_option (self)) {
-       GST_ERROR_OBJECT (self, "subclass failed to set option");
-       return FALSE;
-     }
--  }	  
--
--  /* Only renegotiate on upstream changes */
--  if (self->input_state)
--    return TRUE;
-+  }
- 
-   if (!codec)
-     goto done;
-@@ -727,6 +727,18 @@
+--- gst-plugins-good-1.22.9/sys/v4l2/gstv4l2videoenc.c	2025-02-12 16:50:44.232658438 +0800
++++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2videoenc.c	2025-02-12 16:52:37.264125161 +0800
+@@ -725,6 +725,18 @@
      if (cpool)
        gst_object_unref (cpool);
    }
@@ -42,7 +20,7 @@ diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2videoenc.c gst-plugins-good-1.
    if (ret != GST_FLOW_OK)
      goto beach;
  
-@@ -929,6 +941,11 @@
+@@ -927,6 +939,11 @@
  
      {
        GstBufferPool *opool = gst_v4l2_object_get_buffer_pool (self->v4l2output);
@@ -54,7 +32,7 @@ diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2videoenc.c gst-plugins-good-1.
        ret = gst_v4l2_buffer_pool_process (GST_V4L2_BUFFER_POOL (opool),
            &frame->input_buffer, &frame->system_frame_number);
        if (opool)
-@@ -1193,6 +1210,7 @@
+@@ -1191,6 +1208,7 @@
        V4L2_BUF_TYPE_VIDEO_CAPTURE, klass->default_device,
        gst_v4l2_get_input, gst_v4l2_set_input, NULL);
  
@@ -63,8 +41,8 @@ diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2videoenc.c gst-plugins-good-1.
  
  static void
 diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2videoenc.h gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2videoenc.h
---- gst-plugins-good-1.22.9/sys/v4l2/gstv4l2videoenc.h	2025-02-12 11:35:35.167318679 +0800
-+++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2videoenc.h	2025-02-12 11:36:54.610983916 +0800
+--- gst-plugins-good-1.22.9/sys/v4l2/gstv4l2videoenc.h	2025-02-12 16:50:44.232658438 +0800
++++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2videoenc.h	2025-02-12 16:51:24.884532322 +0800
 @@ -67,6 +67,7 @@
    GstFlowReturn output_flow;
  
