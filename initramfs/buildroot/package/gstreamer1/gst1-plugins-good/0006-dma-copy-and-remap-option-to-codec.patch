@@ -1,6 +1,6 @@
 diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2bufferpool.c gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2bufferpool.c
 --- gst-plugins-good-1.22.9/sys/v4l2/gstv4l2bufferpool.c	2024-01-25 02:21:13.000000000 +0800
-+++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2bufferpool.c	2025-02-12 16:53:59.348053136 +0800
++++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2bufferpool.c	2025-02-13 13:32:29.613079098 +0800
 @@ -134,6 +134,91 @@
    }
  }
@@ -103,23 +103,24 @@ diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2bufferpool.c gst-plugins-good-
  
      gst_video_frame_unmap (&src_frame);
      gst_video_frame_unmap (&dest_frame);
-@@ -1321,6 +1407,15 @@
+@@ -1321,6 +1407,16 @@
        gst_memory_resize (group->mem[i], 0, obj->plane_size[i]);
    }
  
-+  {
++  if(obj->use_dma_copy){
 +    GstV4L2BufferPoolMeta *meta = (GstV4L2BufferPoolMeta *) gst_buffer_add_meta (outbuf,
 +      GST_V4L2_BUFFER_POOL_META_INFO, NULL);
-+    g_assert (meta != NULL);
 +
-+    meta->video_fd = obj->video_fd;
-+    meta->buf_idx = group->buffer.index;
++    if(meta){
++      meta->video_fd = obj->video_fd;
++      meta->buf_idx = group->buffer.index;
++    }
 +  }
 +
    /* Ignore timestamp and field for OUTPUT device */
    if (V4L2_TYPE_IS_OUTPUT (obj->type))
      goto done;
-@@ -1872,6 +1967,24 @@
+@@ -1872,6 +1968,24 @@
  }
  
  /**
@@ -144,7 +145,7 @@ diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2bufferpool.c gst-plugins-good-
   * gst_v4l2_buffer_pool_process:
   * @bpool: a #GstBufferPool
   * @buf: a #GstBuffer, maybe be replaced
-@@ -1953,14 +2066,16 @@
+@@ -1953,14 +2067,16 @@
                    goto done;
                }
  
@@ -169,7 +170,7 @@ diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2bufferpool.c gst-plugins-good-
              }
  
              ret = GST_FLOW_OK;
-@@ -1984,10 +2099,34 @@
+@@ -1984,10 +2100,34 @@
              }
            }
  
@@ -207,7 +208,7 @@ diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2bufferpool.c gst-plugins-good-
  
            if (ret != GST_FLOW_OK)
              goto copy_failed;
-@@ -2315,3 +2454,59 @@
+@@ -2315,3 +2455,59 @@
  {
    gst_v4l2_object_subscribe_event (pool->obj, V4L2_EVENT_SOURCE_CHANGE);
  }
