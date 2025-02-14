@@ -36,7 +36,7 @@ if [ -f /etc/init.d/rc.init ];then
 fi
 
 if [ -f /usr/bin/adckey ];then
-	/usr/bin/adckey /dev/input/event0 10 "restore" &
+	/usr/bin/adckey 10 "factoryreset" &
 fi
 
 if [ -f /etc/init.d/rc.sdcardboot ];then
