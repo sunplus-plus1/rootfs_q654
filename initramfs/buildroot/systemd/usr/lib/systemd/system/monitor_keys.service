@@ -3,7 +3,7 @@ Description=Monitor Keys Service
 After=network.target
 
 [Service]
-ExecStart=/usr/bin/adckey /dev/input/event0 10 "restore"
+ExecStart=/usr/bin/adckey 10 "factoryreset"
 Restart=on-failure
 
 [Install]

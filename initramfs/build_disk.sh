@@ -132,7 +132,7 @@ elif [ "$boot_from" = "SDCARD" ]; then
 fi
 
 function set_restore() {
-cat <<EOF > ${DISKOUT}/sbin/restore
+cat <<EOF > ${DISKOUT}/sbin/factoryreset
 #!/bin/sh
 which systemctl
 if [ "\$?" == "0" ]; then
@@ -160,8 +160,8 @@ if [ -d "${DISKOUT}" ] && [ "${OVERLAYFS}" = "1" ]; then
 	else
 		set_restore "mount -t ext4 /dev/mmcblk0p$partition /mnt"
 	fi
-	chmod 0544 ${DISKOUT}/sbin/restore
-	if [ "${ROOTFS_CONTENT}" != "BUSYBOX" ] && [ "${BOARDNAME}" == "dm" ]; then
+	chmod 0544 ${DISKOUT}/sbin/factoryreset
+	if [ "${ROOTFS_CONTENT}" != "BUSYBOX" ]; then
 		cp buildroot/systemd/usr/lib/systemd/system/monitor_keys.service ${DISKOUT}${LIBPATH}/systemd/system/
 		if [ -d "${DISKOUT}/etc/systemd/system/multi-user.target.wants" ]; then
 			cd ${DISKOUT}/etc/systemd/system/multi-user.target.wants
