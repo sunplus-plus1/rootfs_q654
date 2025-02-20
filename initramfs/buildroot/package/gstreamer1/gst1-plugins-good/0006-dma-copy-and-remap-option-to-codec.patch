@@ -298,8 +298,26 @@ diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2bufferpool.h gst-plugins-good-
  #define GST_V4L2_BUFFER_POOL(obj)      (G_TYPE_CHECK_INSTANCE_CAST ((obj), GST_TYPE_V4L2_BUFFER_POOL, GstV4l2BufferPool))
 diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2h264enc.c gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2h264enc.c
 --- gst-plugins-good-1.22.9/sys/v4l2/gstv4l2h264enc.c	2025-02-12 16:50:44.228658451 +0800
-+++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2h264enc.c	2025-02-12 16:53:59.348053136 +0800
-@@ -360,7 +360,7 @@
++++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2h264enc.c	2025-02-20 15:27:40.657743759 +0800
+@@ -138,6 +138,8 @@
+ #define MIN(a,b) (((a)>(b))?(b):(a))
+ #define MAX(a,b) (((a)>(b))?(a):(b))
+ 
++static int v4l2_h264_enc_set_ctrl(int fd, int id, int value);
++
+ #define gst_v4l2_h264_enc_parent_class parent_class
+ G_DEFINE_TYPE (GstV4l2H264Enc, gst_v4l2_h264_enc, GST_TYPE_V4L2_VIDEO_ENC);
+ 
+@@ -151,6 +153,8 @@
+   switch(prop_id){
+   	case PROP_BITRATE:
+ 	  self->bitrate = g_value_get_uint (value);
++      v4l2_h264_enc_set_ctrl(video_enc->v4l2output->video_fd
++	  								, V4L2_CID_MPEG_VIDEO_BITRATE, self->bitrate);
+ 	  break;
+ 	case PROP_RC_MODE:
+ 	  self->rc_mode = g_value_get_enum (value);
+@@ -360,7 +364,7 @@
  
  
    g_object_class_install_property (gobject_class, PROP_BITRATE,
@@ -308,7 +326,7 @@ diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2h264enc.c gst-plugins-good-1.2
  			G_MAXUINT, GST_V4L2_H264_ENC_BITRATE_DEFAULT,
  			(GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
    g_object_class_install_property (gobject_class, PROP_RC_MODE,
-@@ -375,12 +375,12 @@
+@@ -375,12 +379,12 @@
              0, G_MAXINT, GST_V4L2_H264_ENC_GOP_SIZE_DEFAULT,
              (GParamFlags) (GST_PARAM_CONDITIONALLY_AVAILABLE |
                  G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
@@ -327,7 +345,7 @@ diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2h264enc.c gst-plugins-good-1.2
    g_object_class_install_property (gobject_class, PROP_QP,
  	    g_param_spec_uint ("qp", "Quantization parameter",
  	        "The encoding quality", 0, 51,
-@@ -411,12 +411,12 @@
+@@ -411,12 +415,12 @@
              GST_V4L2_H264_ENC_QP_P_DEFAULT,
              (GParamFlags) (GST_PARAM_CONDITIONALLY_AVAILABLE |
                  G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
@@ -346,7 +364,7 @@ diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2h264enc.c gst-plugins-good-1.2
    g_object_class_install_property (gobject_class, PROP_FROCE_KEY,
          g_param_spec_boolean ("froce-key", "Froce key",
              "Froce encode from key frame",
-@@ -427,6 +427,7 @@
+@@ -427,6 +431,7 @@
              "Add idr to each key frame",
              FALSE,
              G_PARAM_WRITABLE | G_PARAM_STATIC_STRINGS));
@@ -354,7 +372,7 @@ diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2h264enc.c gst-plugins-good-1.2
    g_object_class_install_property (gobject_class, PROP_ENTROPY_MODE,
          g_param_spec_boolean ("cabac", "Use CABAC",
              "Enable CABAC entropy coding",
-@@ -482,7 +483,7 @@
+@@ -482,7 +487,7 @@
  	        GST_V4L2_H264_ENC_VUI_SAR_IDC_DEFAULT,
  	        (GParamFlags) (GST_PARAM_CONDITIONALLY_AVAILABLE |
  	            G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
@@ -363,6 +381,21 @@ diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2h264enc.c gst-plugins-good-1.2
    baseclass->codec_name = "H264";
  }
  
+@@ -559,12 +564,12 @@
+     if(v4l2_h264_enc_set_ctrl(v4l2object->video_fd, V4L2_CID_MPEG_VIDEO_H264_MIN_QP, self->qp_min) < 0){
+   	  GST_ERROR_OBJECT(self, "Set min qp %d failed!", self->qp_min);
+     }
+-	if(v4l2_h264_enc_set_ctrl(v4l2object->video_fd, V4L2_CID_MPEG_VIDEO_BITRATE, self->bitrate) < 0){
++	if(v4l2_h264_enc_set_ctrl(v4l2object->video_fd, V4L2_CID_MPEG_VIDEO_BITRATE, self->bitrate + rand() % 131) < 0){
+   	  GST_ERROR_OBJECT(self, "Set bitrate %d failed!", self->bitrate);
+     }
+   }
+   else if(self->rc_mode == GST_V4L2_H264_ENC_RC_MODE_CBR){
+-	if(v4l2_h264_enc_set_ctrl(v4l2object->video_fd, V4L2_CID_MPEG_VIDEO_BITRATE, self->bitrate) < 0){
++	if(v4l2_h264_enc_set_ctrl(v4l2object->video_fd, V4L2_CID_MPEG_VIDEO_BITRATE, self->bitrate + rand() % 131) < 0){
+ 	  GST_ERROR_OBJECT(self, "Set bitrate %d failed!", self->bitrate);
+     }
+   }
 diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2object.c gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2object.c
 --- gst-plugins-good-1.22.9/sys/v4l2/gstv4l2object.c	2025-02-12 16:50:58.364614595 +0800
 +++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2object.c	2025-02-12 16:53:59.348053136 +0800
@@ -470,7 +503,7 @@ diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2object.h gst-plugins-good-1.22
  GstV4l2Object*  gst_v4l2_object_new       (GstElement * element,
 diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2videodec.c gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2videodec.c
 --- gst-plugins-good-1.22.9/sys/v4l2/gstv4l2videodec.c	2025-02-12 16:50:58.364614595 +0800
-+++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2videodec.c	2025-02-12 16:53:59.352053124 +0800
++++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2videodec.c	2025-02-14 10:43:23.850319749 +0800
 @@ -58,8 +58,9 @@
  enum
  {
