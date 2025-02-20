@@ -1,4 +1,4 @@
-#!/bin/sh		
+#!/bin/bash
 
 if [ ! -L /sbin/init ]; then
 	# for OVERLAYFS
@@ -21,6 +21,16 @@ else
 	fi
 	if ! grep "audio" /etc/group | grep -q "sunplus"; then
 		usermod -G audio -a sunplus
+	fi
+
+	ROOTFS=$(mount | sed -n 's|^/dev/\(.*\) on / .*|\1|p')
+	if [ $ROOTFS = "mmcblk1p2" ]; then
+		if systemctl is-enabled fstrim.timer &>/dev/null; then
+			echo "fstrim.timer is enabled, For SD card, stop and disable it to prevent system stuck busy。"
+			systemctl stop fstrim.timer
+			systemctl disable fstrim.timer
+			echo "fstrim.timer is stopped and disabled。"
+		fi
 	fi
 
 	PART_FLAG=/etc/init.d/partflag
