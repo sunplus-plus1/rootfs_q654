@@ -3,12 +3,10 @@
 import os
 import sys
 
-def setting_attr(root, attr_file):
-    if not os.path.isdir(root):
-        return -1
-    if not os.access(attr_file, os.R_OK):
-        return -1
+RED = "\033[31m"
+RESET = "\033[0m"
 
+def setting_attr(root, attr_file):
     with open(attr_file, "r") as f:
         for line in f:
             line = line.strip()
@@ -24,5 +22,10 @@ def setting_attr(root, attr_file):
 
 if __name__=="__main__":
     if len(sys.argv) < 3:
-        sys.exit()
-    setting_attr(sys.argv[1], sys.argv[2])
+        sys.exit(1)
+    try:
+        setting_attr(sys.argv[1], sys.argv[2])
+        print("setting attr ok.")
+    except Exception as e:
+        print(RED + "", e, RESET, file=sys.stderr)
+        sys.exit(1)
