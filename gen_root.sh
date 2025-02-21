@@ -8,6 +8,12 @@
 OUT_IMG=rootfs.img
 WORK_DIR=./initramfs/disk
 
+check_error() {
+	if [ $? -ne 0 ]; then
+		exit 1
+	fi
+}
+
 if [ "$1" = "EMMC" ]; then
 	
 	FAKEROOT="fakeroot -- "
@@ -27,18 +33,21 @@ if [ "$1" = "EMMC" ]; then
     if [ "$OVERLAYFS" == "1" ]; then
 		#########################  squashfs fs #####################
 	    echo -e  "\E[1;33m ========make squashfs fs========== \E[0m"
-		$FAKEROOT /bin/bash -c "./tools/setting_attr.py $WORK_DIR ./initramfs/.tmp/attr.list; mksquashfs $WORK_DIR $OUT_IMG "
+		$FAKEROOT /bin/bash -c "./tools/setting_attr.py $WORK_DIR ./initramfs/.tmp/attr.list && mksquashfs $WORK_DIR $OUT_IMG "
+		check_error
     else
 		# Assume 40% +20MB overhead for creating ext4 fs.
 		diskdir_sz=$((diskdir_sz*14/10))
 		EXT_SIZE=$((diskdir_sz/1024/1024+20))
-		$FAKEROOT /bin/bash -c "./tools/setting_attr.py $WORK_DIR ./initramfs/.tmp/attr.list; mke2fs -t ext4 -b 4096 -d $WORK_DIR $OUT_IMG $((EXT_SIZE))M"
+		$FAKEROOT /bin/bash -c "./tools/setting_attr.py $WORK_DIR ./initramfs/.tmp/attr.list && mke2fs -t ext4 -b 4096 -d $WORK_DIR $OUT_IMG $((EXT_SIZE))M"
+		check_error
 		#########################  ext4 fs #####################
 		echo -e  "\E[1;33m ========make ext4 fs========== \E[0m"
 		# Resize to 10% more than minimum.
 		minimum_sz=`$RESIZE -P $OUT_IMG | cut -d: -f2`
 		minimum_sz=$((minimum_sz*11/10+1))
 		$RESIZE $OUT_IMG $minimum_sz
+		check_error
 	fi
 
 elif [ "$1" = "SDCARD" ]; then
@@ -72,6 +81,7 @@ elif [ "$1" = "NAND" -o "$1" = "PNAND" ]; then
 	fi
 
 	$MKFS_UBIFS -r $WORK_DIR -m $NAND_PAGESIZE -e $(($NAND_LOGIC_REASE_SIZE)) -c $MAX_ERASE_BLK_CNT -F -o $OUT_IMG
+	check_error
 
 	if [ "$1" = "ZEBU_PNAND" ]; then #mkfs.ubifs+ubinize is used to paranand boot in zebu
 
@@ -97,7 +107,9 @@ elif [ "$1" = "NAND" -o "$1" = "PNAND" ]; then
 
 		echo -e  "\E[1;33m ========rootfs = $NAND_ROOTFS_SIZE  pagesize=$NAND_PAGESIZE========== \E[0m"
 		$MKFS_UBIFS -r $WORK_DIR -m $NAND_PAGESIZE -e $(($NAND_LOGIC_REASE_SIZE)) -c $MAX_ERASE_BLK_CNT -F -o nand.img
+		check_error
 		$UBINIZE -v -o $OUT_IMG -m $NAND_PAGESIZE -p $(($NAND_BLK_SIZE/1024))KiB $UBI_CFG
+		check_error
 		rm -rf nand.img
 	fi
 
@@ -187,4 +199,5 @@ else
 	fi
 
 	$MKSQFS $WORK_DIR $OUT_IMG -all-root -noappend $MKSQFS_COMPOPT
+	check_error
 fi
