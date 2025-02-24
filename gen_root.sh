@@ -33,8 +33,11 @@ if [ "$1" = "EMMC" ]; then
 	diskdir_sz=$((diskdir_sz*14/10))
 	EXT_SIZE=$((diskdir_sz/1024/1024+20))
 	rm -rf $OUT_IMG
-
-	$FAKEROOT /bin/bash -c "./tools/setting_attr.py $WORK_DIR ./initramfs/.tmp/attr.list && mke2fs -t ext4 -b 4096 -d $WORK_DIR $OUT_IMG $((EXT_SIZE))M"
+	if [ -f "./initramfs/.tmp/attr.list" ]; then
+		$FAKEROOT /bin/bash -c "./tools/setting_attr.py $WORK_DIR ./initramfs/.tmp/attr.list && mke2fs -t ext4 -b 4096 -d $WORK_DIR $OUT_IMG $((EXT_SIZE))M"
+	else
+		$FAKEROOT /bin/bash -c "mke2fs -t ext4 -b 4096 -d $WORK_DIR $OUT_IMG $((EXT_SIZE))M"
+	fi
 	check_error
 
 	# Resize to 10% more than minimum.
