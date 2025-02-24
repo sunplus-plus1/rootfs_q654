@@ -34,7 +34,11 @@ if [ "$1" = "EMMC" ]; then
 	if [ "$OVERLAYFS" == "1" ]; then
 		#########################  squashfs fs #####################
 		echo -e  "\E[1;33m ========make squashfs fs========== \E[0m"
-		$FAKEROOT /bin/bash -c "./tools/setting_attr.py $WORK_DIR ./initramfs/.tmp/attr.list && mksquashfs $WORK_DIR $OUT_IMG "
+		if [ -f "./initramfs/.tmp/attr.list" ]; then
+			$FAKEROOT /bin/bash -c "./tools/setting_attr.py $WORK_DIR ./initramfs/.tmp/attr.list && mksquashfs $WORK_DIR $OUT_IMG "
+		else
+			$FAKEROOT /bin/bash -c "mksquashfs $WORK_DIR $OUT_IMG "
+		fi
 		check_error
 		OVERLAYSIZE=200
 		echo "fallocate -l ${OVERLAYSIZE}M $OVERLAY"
@@ -48,7 +52,11 @@ if [ "$1" = "EMMC" ]; then
 		# Assume 40% +20MB overhead for creating ext4 fs.
 		diskdir_sz=$((diskdir_sz*14/10))
 		EXT_SIZE=$((diskdir_sz/1024/1024+20))
-		$FAKEROOT /bin/bash -c "./tools/setting_attr.py $WORK_DIR ./initramfs/.tmp/attr.list && mke2fs -t ext4 -b 4096 -d $WORK_DIR $OUT_IMG $((EXT_SIZE))M"
+		if [ -f "./initramfs/.tmp/attr.list" ]; then
+			$FAKEROOT /bin/bash -c "./tools/setting_attr.py $WORK_DIR ./initramfs/.tmp/attr.list && mke2fs -t ext4 -b 4096 -d $WORK_DIR $OUT_IMG $((EXT_SIZE))M"
+		else
+			$FAKEROOT /bin/bash -c "mke2fs -t ext4 -b 4096 -d $WORK_DIR $OUT_IMG $((EXT_SIZE))M"
+		fi
 		check_error
 		#########################  ext4 fs #####################
 		echo -e  "\E[1;33m ========make ext4 fs========== \E[0m"
