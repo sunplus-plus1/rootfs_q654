@@ -729,6 +729,39 @@ diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2h264enc.c gst-plugins-good-1.2
    }
  
    return TRUE;
+diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2h264enc.h gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2h264enc.h
+--- gst-plugins-good-1.22.9/sys/v4l2/gstv4l2h264enc.h	2025-02-12 16:50:44.228658451 +0800
++++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2h264enc.h	2025-03-26 14:46:43.195421296 +0800
+@@ -52,29 +52,16 @@
+   guint rc_mode;
+   guint bitrate;
+   gint  gop_size;
+-  guint bframes;
+ 
+   guint qp;
+-  guint rf;
+ 
+   guint qp_min;
+   guint qp_max;
+   guint qp_i;
+   guint qp_p;
+-  guint qp_b;
+ 
+   gboolean cabac_en;
+   guint cpb_size;
+-  gboolean transform8x8_en;
+-
+-  gboolean vui_sar_en;
+-  guint vui_sar_idc;
+-  guint vui_sar_width;
+-  guint vui_sar_height;
+-
+-  gint f_mode;
+-  gint tc_offset;
+-  gint beta_offset;
+ 
+   guint ref_num;
+ 
 diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2object.c gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2object.c
 --- gst-plugins-good-1.22.9/sys/v4l2/gstv4l2object.c	2025-02-12 16:50:58.364614595 +0800
 +++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2object.c	2025-02-12 16:53:59.348053136 +0800
@@ -894,7 +927,7 @@ diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2videodec.c gst-plugins-good-1.
  
 diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2videoenc.c gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2videoenc.c
 --- gst-plugins-good-1.22.9/sys/v4l2/gstv4l2videoenc.c	2025-02-12 16:53:40.364112029 +0800
-+++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2videoenc.c	2025-02-12 16:54:24.581137722 +0800
++++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2videoenc.c	2025-03-26 15:22:29.940400149 +0800
 @@ -54,8 +54,11 @@
  {
    PROP_0,
@@ -930,7 +963,21 @@ diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2videoenc.c gst-plugins-good-1.
  
    if (codec->profile_cid)
      gst_structure_set (s, "profile", G_TYPE_STRING, ctx.profile, NULL);
-@@ -1202,6 +1212,7 @@
+@@ -895,10 +905,11 @@
+           gst_object_unref (pool);
+         goto activate_failed;
+       }
+-      if (pool)
+-        gst_object_unref (pool);
+     }
+ 
++    if (pool)
++      gst_object_unref (pool);
++
+     {
+       GstBufferPool *cpool =
+           gst_v4l2_object_get_buffer_pool (self->v4l2capture);
+@@ -1202,6 +1213,7 @@
        gst_v4l2_get_output, gst_v4l2_set_output, NULL);
    self->v4l2output->no_initial_format = TRUE;
    self->v4l2output->keep_aspect = FALSE;
@@ -938,7 +985,7 @@ diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2videoenc.c gst-plugins-good-1.
  
    self->v4l2capture = gst_v4l2_object_new (GST_ELEMENT (self),
        GST_OBJECT (GST_VIDEO_ENCODER_SRC_PAD (self)),
-@@ -1260,6 +1271,12 @@
+@@ -1260,6 +1272,12 @@
    element_class->change_state =
        GST_DEBUG_FUNCPTR (gst_v4l2_video_enc_change_state);
  
