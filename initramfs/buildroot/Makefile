@@ -712,6 +712,8 @@ TARGET_DIR_FILES_LISTS = $(sort $(wildcard $(BUILD_DIR)/*/.files-list.txt))
 HOST_DIR_FILES_LISTS = $(sort $(wildcard $(BUILD_DIR)/*/.files-list-host.txt))
 STAGING_DIR_FILES_LISTS = $(sort $(wildcard $(BUILD_DIR)/*/.files-list-staging.txt))
 
+KERNEL_UAPI_DIR = ${TOPDIR}/../../../kernel/include/uapi/linux
+
 .PHONY: host-finalize
 host-finalize: $(PACKAGES) $(HOST_DIR) $(HOST_DIR_SYMLINK)
 	@$(call MESSAGE,"Finalizing host directory")
@@ -719,6 +721,9 @@ host-finalize: $(PACKAGES) $(HOST_DIR) $(HOST_DIR_SYMLINK)
 
 .PHONY: staging-finalize
 staging-finalize: $(STAGING_DIR_SYMLINK)
+	@cp ${KERNEL_UAPI_DIR}/dma-heap.h ${STAGING_DIR}/usr/include/linux/
+	@cp ${KERNEL_UAPI_DIR}/v4l2-controls.h ${STAGING_DIR}/usr/include/linux/
+	@cp ${KERNEL_UAPI_DIR}/vc-camera-module.h ${STAGING_DIR}/usr/include/linux/
 
 .PHONY: target-finalize
 target-finalize: $(PACKAGES) $(TARGET_DIR) host-finalize
@@ -757,6 +762,7 @@ endif
 		{ echo "ERROR: we shouldn't have a /etc/ld.so.conf file"; exit 1; } || true
 	test -d $(TARGET_DIR)/etc/ld.so.conf.d && \
 		{ echo "ERROR: we shouldn't have a /etc/ld.so.conf.d directory"; exit 1; } || true
+
 	mkdir -p $(TARGET_DIR)/etc
 	( \
 		echo "NAME=Buildroot"; \
