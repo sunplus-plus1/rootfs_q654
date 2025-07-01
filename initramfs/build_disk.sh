@@ -172,7 +172,9 @@ if [ -d "${DISKOUT}" ] && [ "${OVERLAYFS}" = "1" ]; then
 fi
 
 if [ "${ROOTFS_CONTENT}" = "BUILDROOT" ]; then
-
+	if [ "$(readlink ${DISKOUT}/sbin/init)" = "../bin/busybox" ]; then
+		exit 0
+	fi
 	if [ -f "${DISKLIB}/os-release" ]; then
 		# Remove default config of getty@.service.d
 		if [ -d "${DISKOUT}/usr/lib/systemd/system/getty@.service.d" ]; then

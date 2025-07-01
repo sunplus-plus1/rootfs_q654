@@ -1,0 +1,14 @@
+#! /bin/bash
+
+[ -d /root/.nv_backup ] && rm -rf /root/.nv_backup
+/bin/mkdir -p /root/.nv_backup
+/bin/cp -r /nv/. /root/.nv_backup/
+/bin/umount /nv
+chattr -R -i /nv
+[ -d /nv ] && rm -rf /nv
+/bin/mkdir /nv
+/bin/cp -r /root/.nv_backup/. /nv/
+chattr -R +i /nv
+dd if=/dev/zero of=/root/.nv_backup/backup bs=1048576 count=2  &>/dev/null
+
+

@@ -1,0 +1,38 @@
+#!/bin/sh
+PATH=/bin:/sbin:/usr/bin:/usr/sbin
+
+#inittab had mounted file systems of fstab
+#/bin/mount -t pstore none /sys/fs/pstore
+/bin/mount -t debugfs none /sys/kernel/debug
+/bin/mkdir -p /run/lock
+
+# backup nv data to /root/nv_backup
+if [ -f /etc/init.d/rc.nv ]; then
+    /etc/init.d/rc.nv
+fi
+
+if [ ! -d /root/log ];then
+    /bin/mkdir -p /root/log
+    /bin/unlink /var/log
+    /bin/ln -s /root/log /var/log
+fi
+
+if [ -d /sys/class/remoteproc/remoteproc0 ];then
+if [ -f /lib/firmware/firmware ];then
+        echo "BOOT cm4 firmware by remoteproc"
+        echo firmware > /sys/class/remoteproc/remoteproc0/firmware
+        echo start > /sys/class/remoteproc/remoteproc0/state
+#        loop=0
+#        while [ "$loop" -le 3 ]; do
+#                if [ -e "/dev/ttyRPMSG1" ]; then
+#                        break
+#                else
+#                        sleep 1
+#                        ((loop++))
+#                fi
+#        done
+#        /lib/firmware/cm4_server &
+
+fi
+fi
+

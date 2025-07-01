@@ -1,0 +1,85 @@
+#!/bin/bash
+
+function MakeSoftLink()
+{
+    src_file=$1
+    dest_link=$2
+
+    # had link
+    if [ -L ${dest_link} ]; then
+        return 0
+    fi
+
+    # is file
+    if [ -f ${dest_link} ]; then
+	# rm -f ${dest_link}
+        return 0
+    fi
+
+    ln -s ${src_file} ${dest_link}
+    echo "[INFO] Make soft link ${src_file} to ${dest_link} success"
+    return 0
+}
+
+start()
+{
+    VITRON_CAMERA_BASE_TYPE="vm|cm"
+    VITRON_PATH="/etc/vicore/vitron"
+    VITRON_PARAMS_PATH="${VITRON_PATH}/params"
+    CUSTOM_INI_PATH="/etc/custom_config.ini"
+    if [ ! -z "${CUSTOM_CONFIG_INI_PATH}" ] && [ -f ${CUSTOM_CONFIG_INI_PATH} ]; then
+        CUSTOM_INI_PATH=${CUSTOM_CONFIG_INI_PATH}
+    fi
+
+    NV_PATH=`cat ${CUSTOM_INI_PATH} |grep nv_path | awk -F'=' '{print $2}'`
+    if [ -z "${NV_PATH}" ]; then
+        NV_PATH="/nv"
+    fi
+    NV_SENSOR_PATH="${NV_PATH}/sensor"
+
+    MakeSoftLink ${NV_SENSOR_PATH}/pitch.bin ${VITRON_PARAMS_PATH}/pitch.bin
+
+    CAMERA_0_TYPE=""
+    ALL_CAMERA_INFO=(`media-ctl -p -d /dev/media0 | grep entity | grep -E "${VITRON_CAMERA_BASE_TYPE}" | awk -F'[: ]+' '{print $4}'`)
+    for CAMERA_INFO in "${ALL_CAMERA_INFO[@]}"; do
+        echo "[INFO] Read camera info ${CAMERA_INFO}"
+        CAMERA_INDEX=`echo ${CAMERA_INFO} | awk -F'_' '{print $1}' | tr -d 'm'`
+        CAMERA_INDEX=$(printf "%d" "$CAMERA_INDEX")
+        CAMERA_TYPE=`echo ${CAMERA_INFO} | grep -oE "(${VITRON_CAMERA_BASE_TYPE}).*"`
+        MakeSoftLink ${NV_SENSOR_PATH}/dewarp_${CAMERA_INDEX}.bin ${VITRON_PARAMS_PATH}/${CAMERA_TYPE}/${CAMERA_INDEX}/dewarp.bin
+
+        if [ ${CAMERA_INDEX} -eq 0 ]; then
+            CAMERA_0_TYPE=${CAMERA_TYPE}
+            MakeSoftLink ${NV_SENSOR_PATH}/cali.bin ${VITRON_PARAMS_PATH}/${CAMERA_TYPE}/${CAMERA_INDEX}/cali.bin
+        fi
+
+        if [ ${CAMERA_INDEX} -eq 1 -a X"${CAMERA_TYPE}" != X"${CAMERA_0_TYPE}" ]; then
+            MakeSoftLink ${NV_SENSOR_PATH}/dewarp_${CAMERA_INDEX}.bin ${VITRON_PARAMS_PATH}/${CAMERA_0_TYPE}/${CAMERA_INDEX}/dewarp.bin
+        fi
+    done
+
+    MULTI_PARAMS_PATH=/etc/vicore/vitron/tuning/cal
+    mkdir -p ${MULTI_PARAMS_PATH}
+    mount --bind ${NV_SENSOR_PATH} ${MULTI_PARAMS_PATH}
+    if [ $? -ne 0 ]; then
+        echo "[ERROR] mount ${NV_SENSOR_PATH} to ${MULTI_PARAMS_PATH} failed"
+    else
+        echo "[INFO] mount ${NV_SENSOR_PATH} to ${MULTI_PARAMS_PATH} success"
+    fi
+}
+
+
+case "$1" in
+        start)
+                start
+                ;;
+        stop)
+                ;;
+        restart|reload)
+                start
+                ;;
+        *)
+                echo "Usage: $0 {start|restart|reload}" >&2
+                exit 1
+                ;;
+esac

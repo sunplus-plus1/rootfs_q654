@@ -1,0 +1,20 @@
+#!/bin/bash
+
+stop()
+{
+    ps aux | grep tuning_server | grep -v grep | awk '{print $2}' | xargs -i kill -9 {}
+    ps aux | grep 3dvision_server | grep -v grep | awk '{print $2}' | xargs -i kill -9 {}
+}
+
+case "$1" in
+        start)
+                ;;
+        stop)
+                stop
+                ;;
+        *)
+                echo "Usage: $0 {start}" >&2
+                exit 1
+                ;;
+esac
+

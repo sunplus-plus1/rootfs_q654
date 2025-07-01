@@ -1,0 +1,72 @@
+#!/bin/bash
+
+PROPERTY_CONFIG_FILE=/etc/vicore/property/default.prop
+VIDEO_DEVICE=/dev/video200
+CAMMANAGER_CONFIG_FILE=/etc/vicore/camera_manager/cammanager.json
+
+mount_mqueue() {
+    if [ ! -d /dev/mqueue ]; then
+        mkdir -p /dev/mqueue
+    fi
+
+    if ! mountpoint -q /dev/mqueue; then
+        mount -t mqueue none /dev/mqueue
+    fi
+}
+
+start()
+{
+	####load ndk ko####
+        cd /usr/lib/modules
+        for file in `ls`
+        do
+                if [ -f "$file" -a $file != "galcore.ko" -a $file != "vipcore.ko" ] ; then
+                        insmod $file
+                fi
+        done
+
+	####enable propertyd####
+	mount_mqueue
+
+	if [ -f ${PROPERTY_CONFIG_FILE} ]; then 
+		source  /etc/profile.d/setLibaryPath.sh
+		nohup propertyd ${PROPERTY_CONFIG_FILE} > /var/log/propertyd.log 2>&1 &
+	fi
+	
+	
+	sleep 1
+	####start cammanager####
+	if [ -f ${CAMMANAGER_CONFIG_FILE} ]
+	then
+		video_format=`v4l2-ctl --device=${VIDEO_DEVICE} --list-formats-ext`
+		color_info=`echo ${video_format#*'[0]:'} | awk '{print $1}' | sed "s/'//g"`
+		wh_info=`echo ${video_format#*'Discrete'} | awk '{print $1}'`
+		w_info=`echo ${wh_info} | awk -F'x' '{print $1}'`
+		h_info=`echo ${wh_info} | awk -F'x' '{print $2}'`
+		fps_info=`echo ${video_format#*'Interval:'} | awk -F'(' '{print $2}' | awk '{print $1}' | awk -F'.' '{print $1}'`
+
+		sed -i "s/\"width.*/\"width\":$w_info,/" ${CAMMANAGER_CONFIG_FILE}
+		sed -i "s/\"height.*/\"height\":$h_info,/" ${CAMMANAGER_CONFIG_FILE}
+		sed -i "s/\"sensor_format.*/\"sensor_format\":\"$color_info\",/" ${CAMMANAGER_CONFIG_FILE}
+		#sed -i "s/\"sensor_fps.*/\"sensor_fps\":$fps_info,/" ${CAMMANAGER_CONFIG_FILE}
+
+		nohup cammanager_daemon ${CAMMANAGER_CONFIG_FILE} 2>&1 | logger -t cammanager -p user.info &
+	else
+		nohup cammanager_daemon 2>&1 | logger -t cammanager -p user.info &
+	fi
+}
+
+case "$1" in
+        start)
+                start
+                ;;
+        stop)
+                ;;
+        restart|reload)
+                start
+                ;;
+        *)
+                echo "Usage: $0 {start|restart|reload}" >&2
+                exit 1
+                ;;
+esac

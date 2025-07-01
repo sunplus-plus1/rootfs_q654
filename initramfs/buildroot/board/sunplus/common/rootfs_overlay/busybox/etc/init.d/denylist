@@ -1,0 +1,1 @@
+deny_list=(S21haveged S50mosquitto S21rngd S80swupdate )

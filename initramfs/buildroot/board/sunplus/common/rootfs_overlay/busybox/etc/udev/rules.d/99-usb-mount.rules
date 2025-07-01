@@ -1,0 +1,2 @@
+ACTION=="add", ENV{DEVTYPE}=="partition", ENV{ID_FS_TYPE}=="ntfs", RUN+="/etc/mount-usb.sh %k"
+ACTION=="remove", ENV{DEVTYPE}=="partition", ENV{ID_FS_TYPE}=="ntfs", RUN+="/bin/umount /dev/%k"

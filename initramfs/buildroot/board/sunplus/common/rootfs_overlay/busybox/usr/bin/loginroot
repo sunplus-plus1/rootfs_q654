@@ -1,0 +1,6 @@
+#!/bin/sh
+if [ "$(tty)" == "/dev/ttyS0" ]; then
+	trap 'resize &> /dev/null' DEBUG
+fi
+
+/bin/login -f root

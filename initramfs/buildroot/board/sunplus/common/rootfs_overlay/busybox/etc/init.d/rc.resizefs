@@ -1,0 +1,22 @@
+#!/bin/sh
+
+ROOT_PARTITION=$(cat /proc/cmdline | grep -o 'root=/dev/mmcblk[^ ]*' | sed 's/root=//')
+if [ ! -b "$ROOT_PARTITION" ]; then
+        exit 0
+fi
+ROOT_DEVICE=$(echo "$ROOT_PARTITION" | sed 's/p[0-9]\+$//')
+ROOT_DEVICE_TYPE=$(cat /sys/block/${ROOT_DEVICE:5:}/device/type)
+if [ "$ROOT_DEVICE_TYPE" = "SDCARD" ]; then
+	parted $ROOT_DEVICE resizepart 2 100%
+	if [ "$?" != "0" ]; then
+		echo "parted failed!"
+		exit 1
+	fi
+fi
+
+resize2fs $ROOT_PARTITION
+
+USERDATA_PARTITION=$(fdisk -x /dev/mmcblk0 | grep -w userdata | awk '{print $1}')
+if [ -b $USERDATA_PARTITION ];then
+	resize2fs $USERDATA_PARTITION
+fi

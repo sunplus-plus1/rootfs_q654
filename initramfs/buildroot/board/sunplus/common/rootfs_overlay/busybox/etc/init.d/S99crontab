@@ -1,0 +1,35 @@
+#!/bin/bash
+
+start()
+{
+	[ ! -d /etc/crontab.d ] && mkdir /etc/crontab.d && echo "* * * * *  /usr/sbin/logrotate /etc/logrotate.conf" > /etc/crontab.d/root
+	if [ ! -d /var/spool/cron ]; then
+  	 mkdir /var/spool/cron
+  	 ln -s /etc/crontab.d /var/spool/cron/crontabs 
+	fi
+	start-stop-daemon -S -q -p /var/run/crond.pid --exec /usr/sbin/crond
+}
+
+stop()
+{
+        echo "crontab stop"
+}
+
+
+case "$1" in
+        start)
+                start
+                ;;
+        stop)
+                stop
+                ;;
+        restart|reload)
+                stop
+                start
+                ;;
+        *)
+                echo "Usage: $0 {start|stop|restart|reload}" >&2
+                exit 1
+                ;;
+esac
+

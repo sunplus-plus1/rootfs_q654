@@ -1,0 +1,41 @@
+#!/bin/bash
+
+start()
+{
+# disable thermal set cpu freq via change trip temp to max 125 degree C
+echo 125000 > /sys/class/thermal/thermal_zone0/trip_point_0_temp
+echo 125000 > /sys/class/thermal/thermal_zone0/trip_point_1_temp
+echo 125000 > /sys/class/thermal/thermal_zone0/trip_point_2_temp
+
+# lock cpu freq to 1.8GHZ
+echo 1800000 > /sys/devices/system/cpu/cpufreq/policy0/scaling_max_freq 
+echo 1800000 > /sys/devices/system/cpu/cpufreq/policy0/scaling_min_freq
+
+# disable hung_task debug info
+echo 0 > /proc/sys/kernel/hung_task_timeout_secs
+
+}
+
+stop()
+{
+        echo "system config stop, do nothing"
+}
+
+
+case "$1" in
+        start)
+                #start
+                ;;
+        stop)
+                stop
+                ;;
+        restart|reload)
+                stop
+                start
+                ;;
+        *)
+                echo "Usage: $0 {start|stop|restart|reload}" >&2
+                exit 1
+                ;;
+esac
+

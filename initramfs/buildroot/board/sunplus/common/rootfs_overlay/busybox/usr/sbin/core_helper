@@ -1,0 +1,38 @@
+#!/bin/sh
+
+#chrt -pf 90 $$
+
+corePath=${2:-"/root/coredump"}
+if [ ! -d "$corePath" ];then
+	mkdir $corePath
+fi
+#Delete the last core if it is more than two when check count of core
+coreCount=0
+file_name_list=`ls $corePath`
+
+for file_name in $file_name_list
+do
+	coreName=`find $corePath/$file_name | grep "core"`
+	if [ $coreCount -eq  0 ] && [ "$coreName" != "" ];then
+		coreNameFirst=${coreName##*/}
+		let coreCount++
+	elif [ $coreCount -eq 1 ] && [ "$coreName" != "" ];then
+		coreNameSecond=${coreName##*/}
+		let coreCount++
+	fi
+done
+
+#echo $coreNameFirst
+#echo $coreNameSecond
+#echo $coreCount
+
+if [ $coreCount -eq 2 ];then
+	if [ $coreNameFirst \<  $coreNameSecond ];then
+		rm -r $corePath/$coreNameFirst
+	else
+		rm -r $corePath/$coreNameSecond
+	fi
+fi
+
+nowTime=`date +%Y%m%d%H%M%S`
+exec gzip - > $corePath/$1.core.$nowTime.gz

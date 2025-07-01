@@ -1,0 +1,2 @@
+ACTION=="change", DEVPATH=="/devices/platform/f8102800.usb/udc/f8102800.usb", SUBSYSTEM=="udc", RUN+="/bin/sh /usr/bin/udc_rebind.sh"
+ACTION=="online", SUBSYSTEM=="platform", RUN+="/bin/sh /usr/bin/s50_restart.sh"

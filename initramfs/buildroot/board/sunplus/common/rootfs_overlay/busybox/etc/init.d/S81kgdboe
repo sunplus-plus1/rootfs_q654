@@ -1,0 +1,35 @@
+#!/bin/bash
+
+start()
+{
+	filepathCmd="find /usr/lib/modules -name kgdboe.ko"
+	filepath=$(eval $filepathCmd)
+
+	if [ -e "${filepath}" ]; then
+    		insmod ${filepath}
+	fi
+}
+
+stop()
+{
+        echo "kgdboe stop"
+}
+
+
+case "$1" in
+        start)
+                start
+                ;;
+        stop)
+                stop
+                ;;
+        restart|reload)
+                stop
+                start
+                ;;
+        *)
+                echo "Usage: $0 {start|stop|restart|reload}" >&2
+                exit 1
+                ;;
+esac
+
