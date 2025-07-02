@@ -1,0 +1,14 @@
+cammgr0.auto_detect 1
+cammgr0.hdr_enable 0
+cammgr0.buffer_num 4
+cammgr0.width 1600
+cammgr0.height 1200
+cammgr0.sensor_fps 30
+cammgr0.sensor_format RG10
+cammgr1.auto_detect 1
+cammgr1.hdr_enable 0
+cammgr1.buffer_num 4
+cammgr1.width 1600
+cammgr1.height 1200
+cammgr1.sensor_fps 30
+cammgr1.sensor_format RG10
