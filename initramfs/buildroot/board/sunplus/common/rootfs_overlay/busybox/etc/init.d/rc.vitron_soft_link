@@ -24,7 +24,7 @@ function MakeSoftLink()
 start()
 {
     VITRON_CAMERA_BASE_TYPE="vm|cm"
-    VITRON_PATH="/etc/vicore/vitron"
+    VITRON_PATH="/etc/sunplus/vitron"
     VITRON_PARAMS_PATH="${VITRON_PATH}/params"
     CUSTOM_INI_PATH="/etc/custom_config.ini"
     if [ ! -z "${CUSTOM_CONFIG_INI_PATH}" ] && [ -f ${CUSTOM_CONFIG_INI_PATH} ]; then
@@ -58,7 +58,7 @@ start()
         fi
     done
 
-    MULTI_PARAMS_PATH=/etc/vicore/vitron/tuning/cal
+    MULTI_PARAMS_PATH=/etc/sunplus/vitron/tuning/cal
     mkdir -p ${MULTI_PARAMS_PATH}
     mount --bind ${NV_SENSOR_PATH} ${MULTI_PARAMS_PATH}
     if [ $? -ne 0 ]; then

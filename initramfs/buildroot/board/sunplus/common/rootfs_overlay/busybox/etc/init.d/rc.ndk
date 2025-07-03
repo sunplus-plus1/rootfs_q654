@@ -1,8 +1,8 @@
 #!/bin/bash
 
-PROPERTY_CONFIG_FILE=/etc/vicore/property/default.prop
+PROPERTY_CONFIG_FILE=/etc/sunplus/property/default.prop
 VIDEO_DEVICE=/dev/video200
-CAMMANAGER_CONFIG_FILE=/etc/vicore/camera_manager/cammanager.json
+CAMMANAGER_CONFIG_FILE=/etc/sunplus/camera_manager/cammanager.json
 
 mount_mqueue() {
     if [ ! -d /dev/mqueue ]; then
@@ -29,7 +29,7 @@ start()
 	mount_mqueue
 
 	if [ -f ${PROPERTY_CONFIG_FILE} ]; then 
-		source  /etc/profile.d/setLibaryPath.sh
+		source  /etc/profile.d/setLibraryPath.sh
 		nohup propertyd ${PROPERTY_CONFIG_FILE} > /var/log/propertyd.log 2>&1 &
 	fi
 	

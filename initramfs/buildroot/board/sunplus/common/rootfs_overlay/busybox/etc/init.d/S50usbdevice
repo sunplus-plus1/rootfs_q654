@@ -396,7 +396,7 @@ function setup_hid_imu()
 {
     hid_imu_path="hid.imu"
     mkdir ${USB_FUNCTIONS_DIR}/${hid_imu_path}
-    for file in $(ls /etc/vicore/hid_desc/*)
+    for file in $(ls /etc/sunplus/hid_desc/*)
     do
 	    echo $file
 	    break
@@ -627,7 +627,7 @@ uvc_start(){
 		exit -1
 	fi
 
-	nohup uvc-gadget -p /etc/vicore/uvc/ -u ${DEVICE_VIDEO_0} uvc.gs6 &
+	nohup uvc-gadget -p /etc/sunplus/uvc/ -u ${DEVICE_VIDEO_0} uvc.gs6 &
 	sleep 1
 
 	if [ -z "${DEVICE_VIDEO_1}" ]; then
@@ -640,7 +640,7 @@ uvc_start(){
         	exit 0
 	fi
 
-	nohup uvc-gadget -p /etc/vicore/uvc/ -u ${DEVICE_VIDEO_1} uvc.gs7 &
+	nohup uvc-gadget -p /etc/sunplus/uvc/ -u ${DEVICE_VIDEO_1} uvc.gs7 &
 }
 
 uvc_stop(){

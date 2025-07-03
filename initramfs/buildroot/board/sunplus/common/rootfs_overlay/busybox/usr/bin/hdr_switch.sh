@@ -1,6 +1,6 @@
 #!/bin/bash
 
-PROP_FILE=/etc/vicore/property/default.prop
+PROP_FILE=/etc/sunplus/property/default.prop
 
 function Usage()
 {
@@ -116,7 +116,7 @@ if [ -n "${tmp_propertyd_pid}" ]; then
     exit 1
 fi
 
-PROPERTY_CONFIG_FILE=/etc/vicore/property/default.prop
+PROPERTY_CONFIG_FILE=/etc/sunplus/property/default.prop
 nohup propertyd ${PROPERTY_CONFIG_FILE} > /var/log/propertyd.log 2>&1 &
 sleep 1
 new_propertyd_pid=`ps aux | grep propertyd | grep -v grep | awk '{print $2}'`
