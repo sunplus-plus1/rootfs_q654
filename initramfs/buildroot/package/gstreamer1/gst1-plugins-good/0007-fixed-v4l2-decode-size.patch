@@ -1,0 +1,188 @@
+diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2bufferpool.c gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2bufferpool.c
+--- gst-plugins-good-1.22.9/sys/v4l2/gstv4l2bufferpool.c	2025-07-17 11:25:19.963957599 +0800
++++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2bufferpool.c	2025-07-17 11:30:12.577887033 +0800
+@@ -218,6 +218,67 @@
+   return ret;
+ }
+ 
++static gboolean
++gst_v4l2_buffer_pool_copy_decode_fixed (GstV4l2BufferPool * pool, GstBuffer * dest,
++    GstBuffer * src)
++{
++  GstMapInfo sinfo, dinfo;
++  gint y_size = 0, uv_size;
++  gint align_size,skip_line = 0;
++  const GstVideoFormatInfo *finfo = pool->caps_info.finfo;
++
++  g_return_val_if_fail (GST_IS_VIDEO_DECODER(pool->obj->element), FALSE);
++  g_return_val_if_fail (GST_VIDEO_FORMAT_INFO_IS_YUV(finfo), FALSE);
++
++  GST_DEBUG_OBJECT (pool, "Fixed decode output aligned");
++
++  if(gst_buffer_get_size(src) <= gst_buffer_get_size(dest))
++    return FALSE;
++
++  if(!gst_buffer_map(src, &sinfo, GST_MAP_READ))
++    goto invalid_buffer;
++
++  if(!gst_buffer_map(dest, &dinfo, GST_MAP_WRITE)){
++    gst_buffer_unmap(src, &sinfo);
++    goto invalid_buffer;
++  }
++
++  int w = pool->caps_info.width;
++  int h = pool->caps_info.height;
++
++  align_size = sinfo.size - dinfo.size;
++
++  if(finfo->format == GST_VIDEO_FORMAT_NV12){
++    y_size = dinfo.size / 3 * 2;
++    skip_line = align_size / w / 3 * 2;
++  }
++  else if(finfo->format == GST_VIDEO_FORMAT_NV16
++    || finfo->format == GST_VIDEO_FORMAT_NV61){
++    y_size = dinfo.size / 2;
++    skip_line = align_size / w / 2;
++  }
++  else if(finfo->format == GST_VIDEO_FORMAT_NV24)  {
++   y_size = dinfo.size / 3;
++   skip_line = align_size / w / 3;
++  }
++
++  if(y_size){
++    memcpy(dinfo.data, sinfo.data, y_size);
++    memcpy(dinfo.data + y_size, sinfo.data + y_size + skip_line*w, dinfo.size-y_size );
++  }
++
++  gst_buffer_unmap(src, &sinfo);
++  gst_buffer_unmap(dest, &dinfo);
++
++  return TRUE;
++
++invalid_buffer:
++  {
++    GST_ERROR_OBJECT (pool, "could not map buffer");
++    return FALSE;
++  }
++}
++
+ 
+ static GstFlowReturn
+ gst_v4l2_buffer_pool_copy_buffer (GstV4l2BufferPool * pool, GstBuffer * dest,
+@@ -233,21 +294,25 @@
+ 
+     GST_DEBUG_OBJECT (pool, "copy video frame");
+ 
+-    /* we have raw video, use videoframe copy to get strides right */
+-    if (!gst_video_frame_map (&src_frame, &pool->caps_info, src, GST_MAP_READ))
+-      goto invalid_buffer;
++    /*[Wang.Zhou]Fixed decoder 16 bytes align cause output size change*/
++    if(!gst_v4l2_buffer_pool_copy_decode_fixed(pool, dest, src)){
+ 
+-    if (!gst_video_frame_map (&dest_frame, &pool->caps_info, dest,
+-            GST_MAP_WRITE)) {
+-      gst_video_frame_unmap (&src_frame);
+-      goto invalid_buffer;
+-    }
++      /* we have raw video, use videoframe copy to get strides right */
++      if (!gst_video_frame_map (&src_frame, &pool->caps_info, src, GST_MAP_READ))
++        goto invalid_buffer;
++
++      if (!gst_video_frame_map (&dest_frame, &pool->caps_info, dest,
++              GST_MAP_WRITE)) {
++        gst_video_frame_unmap (&src_frame);
++        goto invalid_buffer;
++      }
+ 
+-    if(!gst_v4l2_buffer_pool_copy_buffer_dma(pool, dest, src))
+-      gst_video_frame_copy (&dest_frame, &src_frame);
++      if(!gst_v4l2_buffer_pool_copy_buffer_dma(pool, dest, src))
++        gst_video_frame_copy (&dest_frame, &src_frame);
+ 
+-    gst_video_frame_unmap (&src_frame);
+-    gst_video_frame_unmap (&dest_frame);
++      gst_video_frame_unmap (&src_frame);
++      gst_video_frame_unmap (&dest_frame);
++    }
+   } else {
+     GstMapInfo map;
+ 
+@@ -2100,12 +2165,14 @@
+             }
+           }
+ 
++          /* Copy the output data to user space from decoder dma buffer */
+           if(!obj->disable_capture_copy){
+             ret = gst_v4l2_buffer_pool_copy_buffer (pool, *buf, tmp);
+ 
+             /* an queue the buffer again after the copy */
+             gst_v4l2_buffer_pool_complete_release_buffer (bpool, tmp, FALSE);
+           }
++          /* Use the output dma buffer directory to improve efficiency */
+           else{
+             NotifyData *udata = g_new0 (NotifyData, 1);
+ 
+diff -uNr gst-plugins-good-1.22.9/sys/v4l2/gstv4l2videodec.c gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2videodec.c
+--- gst-plugins-good-1.22.9/sys/v4l2/gstv4l2videodec.c	2025-07-17 11:25:19.967957579 +0800
++++ gst-plugins-good-1.22.9.b/sys/v4l2/gstv4l2videodec.c	2025-07-17 11:30:41.374447911 +0800
+@@ -474,7 +474,11 @@
+     goto not_negotiated;
+   }
+ 
+-  /* [Wang.Zhou] Same with input resolution */
++  /* [Wang.Zhou] Same with input resolution if not use the decoder output
++   * buffer directory. The output resolution may different with input since
++   * the decoder requires 16 bytes align
++   */
++  if(!self->v4l2capture->disable_capture_copy)
+   {
+     GstVideoInfo *oinfo = &self->v4l2output->info;
+     if((info.height != oinfo->height)
+@@ -745,7 +749,7 @@
+   GstBufferPool *pool;
+   GstVideoCodecFrame *frame;
+   GstBuffer *buffer = NULL;
+-  GstVideoInfo *vinfo = &self->v4l2output->info;
++  GstVideoInfo *sinfo = &self->v4l2output->info;
+   GstMapInfo info;
+   GstFlowReturn ret;
+ 
+@@ -805,6 +809,20 @@
+     if (ret != GST_FLOW_OK)
+       goto beach;
+ 
++    /* [Wang.Zhou]resize buffer to input size if has do aligned*/
++    if(!self->v4l2capture->disable_capture_copy)
++    {
++      gint w_aligin = GST_ROUND_UP_16 (sinfo->width);
++      gint h_aligin = GST_ROUND_UP_16 (sinfo->height);
++      if ((w_aligin != sinfo->width) || (h_aligin != sinfo->height)){
++        gst_buffer_map(buffer, &info, GST_MAP_READWRITE);
++        float pixsize = (float)info.size / (float)(w_aligin * h_aligin);
++        gint resize = w_aligin * sinfo->height * pixsize;
++        gst_memory_resize(info.memory, info.memory->offset, resize);
++        gst_buffer_unmap(buffer, &info);
++      }
++    }
++
+     GST_LOG_OBJECT (decoder, "Process output buffer");
+     {
+       GstV4l2BufferPool *cpool =
+@@ -874,17 +892,6 @@
+ 
+     frame->duration = self->v4l2capture->duration;
+ 
+-    /*[Wang.Zhou]resize buffer to roi size*/
+-    gint w_aligin = GST_ROUND_UP_16 (vinfo->width);
+-    gint h_aligin = GST_ROUND_UP_16 (vinfo->height);
+-    if ((w_aligin != vinfo->width) || (h_aligin != vinfo->height)){
+-      gst_buffer_map(buffer, &info, GST_MAP_READWRITE);
+-      float pixsize = (float)info.size / (float)(w_aligin * h_aligin);
+-      gint resize = w_aligin * vinfo->height * pixsize;
+-      gst_memory_resize(info.memory, info.memory->offset, resize);
+-      gst_buffer_unmap(buffer, &info);
+-    }
+-
+     frame->output_buffer = buffer;
+     buffer = NULL;
+     ret = gst_video_decoder_finish_frame (decoder, frame);
