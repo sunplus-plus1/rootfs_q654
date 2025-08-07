@@ -1,0 +1,2 @@
+#wl_preinit=pm2_sleep_ret=2000
+dhd_slpauto=0
