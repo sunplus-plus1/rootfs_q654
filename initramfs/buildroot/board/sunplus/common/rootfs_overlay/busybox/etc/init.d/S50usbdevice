@@ -686,7 +686,7 @@ usb_device_start()
 
 case "$1" in
 start)
-	common_start
+	#common_start
 	usb_device_start
 	uvc_start
 
