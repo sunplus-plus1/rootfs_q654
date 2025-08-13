@@ -7,3 +7,4 @@ fi
 
 mkdir -p $ROOTFS_DIR/nv
 mkdir -p $ROOTFS_DIR/data
+mkdir -p $ROOTFS_DIR/lib/firmware
