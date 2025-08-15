@@ -1,0 +1,5 @@
+{
+    "crop_mode": "FIXED",
+    "crop_type": "INT",
+    "roi_rect":[0, 80, 1280, 800]
+}

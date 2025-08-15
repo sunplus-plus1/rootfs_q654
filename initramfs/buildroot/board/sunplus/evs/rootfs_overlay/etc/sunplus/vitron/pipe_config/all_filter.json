@@ -1,0 +1,16 @@
+{
+    "global": {
+        "inf_pix_val": 0
+    },
+    "post_filters": [
+        {
+            "type": "speckle",
+            "min_win_size": 40,
+            "max_pix_diff": 115
+        },
+        {
+            "type": "nearest-neighbor",
+            "max_pix_radius": 1.5
+        }
+    ]
+}

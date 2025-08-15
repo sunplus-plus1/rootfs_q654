@@ -1,0 +1,44 @@
+{
+    "version": "3.3",
+    "modules": [
+     {
+       "name": "ImageCatcherClient",
+       "shortname": "IMGC",
+       "device_node": [
+         "/dev/video32"
+       ],
+       "remote_endpoint": [
+         "ImgcBridge"
+       ],
+       "consumer_bq_num": 0,
+       "producer_bq_num": 1,
+       "buffer_num": [
+         2
+       ],
+       "vec_resolution": [],
+       "vec_format": []
+     },
+     {
+       "name": "ImgcBridge",
+       "shortname": "ImgcBridge",
+       "device_node": [],
+       "remote_endpoint": ["VioDataExporter"],
+       "consumer_bq_num": 1,
+       "producer_bq_num": 1,
+       "buffer_num": [2],
+       "vec_resolution": [],
+       "vec_format": []
+     },
+     {
+       "name": "VioDataExporter",
+       "shortname": "DEXP",
+       "device_node": [],
+       "remote_endpoint": [],
+       "consumer_bq_num": 1,
+       "producer_bq_num": 0,
+       "buffer_num": [],
+       "vec_resolution": [],
+       "vec_format": []
+     }
+   ]
+ }
