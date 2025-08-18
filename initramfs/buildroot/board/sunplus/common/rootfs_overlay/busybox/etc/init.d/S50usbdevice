@@ -414,138 +414,350 @@ function setup_hid_imu()
     let USB_FUNCTIONS_CNT=USB_FUNCTIONS_CNT+1
 }
 
+configure_uvc_resolution_fps_yuyv()
+{
+    W=$1
+    H=$2
+    FPS=$3
+    F=$((10000000 / FPS))
+
+    DIR=$4${W}p/
+    if [ $5 -eq 1 ];then
+        DIR=$4${H}p/
+    fi
+    echo "DIR: $DIR"
+
+    mkdir -p ${DIR}
+    echo $W > ${DIR}/wWidth
+    echo $H > ${DIR}/wHeight
+    echo $F > ${DIR}/dwDefaultFrameInterval
+
+    echo $((W*H*30*16)) > ${DIR}/dwMinBitRate
+    echo $((W*H*30*16)) > ${DIR}/dwMaxBitRate
+    echo $((W*H*2)) > ${DIR}/dwMaxVideoFrameBufferSize
+
+    cat <<EOF  > ${DIR}/dwFrameInterval
+$(for item in "${ALL_UVC_FPS_INFO[@]}"; do echo "$item"; done)
+EOF
+}
+
+configure_uvc_resolution_fps_mjpeg()
+{
+    W=$1
+    H=$2
+    FPS=$3
+    F=$((10000000 / FPS))
+
+    DIR=$4${W}p/
+    if [ $5 -eq 1 ];then
+        DIR=$4${H}p/
+    fi
+    echo "DIR: $DIR"
+
+    mkdir -p ${DIR}
+    echo $W > ${DIR}/wWidth
+    echo $H > ${DIR}/wHeight
+    echo $F > ${DIR}/dwDefaultFrameInterval
+
+    echo $((W*H*20)) > ${DIR}/dwMinBitRate
+    echo $((W*H*20)) > ${DIR}/dwMaxBitRate
+    echo $((W*H*2)) > ${DIR}/dwMaxVideoFrameBufferSize
+
+    cat <<EOF  > ${DIR}/dwFrameInterval
+$(for item in "${ALL_UVC_FPS_INFO[@]}"; do echo "$item"; done)
+EOF
+}
+
+function get_all_fps_info()
+{
+    # default fps info
+    local all_fps_info=(100000 333333 1000000)
+    uvc_config_file=$1
+    if [ ! -f "$uvc_config_file" ]; then
+        echo "No $uvc_config_file found"
+        return 0
+    fi
+
+    all_fps=(`cat $uvc_config_file | grep -v "^#" | awk -F',' '{print $3}'`)
+    for fps in "${all_fps[@]}"; do
+        if [[ ! "$fps" =~ ^[0-9]+$ || $fps -lt 1 || $fps -gt 400 ]]; then
+            continue
+        fi
+
+        fps_val=$((10000000 / fps))
+        all_fps_info+=($fps_val)
+    done
+
+    all_fps_info=($(for item in "${all_fps_info[@]}"; do echo "$item"; done | sort -n | uniq))
+    echo "${all_fps_info[@]}"
+}
+
+function deal_uvc_config_file()
+{
+    uvc_config_file=$1
+    if [ ! -f "$uvc_config_file" ]; then
+        echo "No $uvc_config_file found"
+        return 0
+    fi
+
+    ALL_UVC_FPS_INFO=($(get_all_fps_info $uvc_config_file))
+    echo "all uvc fps info: ${ALL_UVC_FPS_INFO[@]}"
+
+    uvc_yuyv_dir=${UVC_U_DIR}
+    uvc_mjpeg_dir=${UVC_M_DIR}
+    uvc_streaming_dir=${UVC_STREAMING_DIR}
+    uvc_index=$2
+    if [ X"$uvc_index" = X"2" ]; then
+        uvc_yuyv_dir=${UVC2_U_DIR}
+        uvc_mjpeg_dir=${UVC2_M_DIR}
+        uvc_streaming_dir=${UVC2_STREAMING_DIR}
+    fi
+
+    mkdir -p ${uvc_yuyv_dir}
+    mkdir -p ${uvc_mjpeg_dir}
+
+    is_had_yuyv=0
+    is_had_mjpeg=0
+    declare -A resolution_format_count
+    camera_00=$(media-ctl -p -d /dev/media0 | grep -m 1 m00_ | awk -F"\"" '{print $2}' | awk -F"_" '{print $3}' | awk '{print $1}')
+    camera_01=$(media-ctl -p -d /dev/media0 | grep -m 1 m01_ | awk -F"\"" '{print $2}' | awk -F"_" '{print $3}' | awk '{print $1}')
+    camera_02=$(media-ctl -p -d /dev/media0 | grep -m 1 m02_ | awk -F"\"" '{print $2}' | awk -F"_" '{print $3}' | awk '{print $1}')
+    camera_03=$(media-ctl -p -d /dev/media0 | grep -m 1 m03_ | awk -F"\"" '{print $2}' | awk -F"_" '{print $3}' | awk '{print $1}')
+
+    ALL_RESOLUTIONS=($(lua ${uvc_config_file} ${camera_00}${camera_00}${camera_02}${camera_03}))
+
+    for line in "${ALL_RESOLUTIONS[@]}"; do
+        trimmed_line=$(echo "$line" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        # Skip blank and comment lines
+        if [[ -z "$trimmed_line" || $trimmed_line == \#* ]]; then
+            continue
+        fi
+
+        read -r width height fps format <<< $(echo "$trimmed_line" | awk -F',' '{print $1, $2, $3, $4}')
+        echo "read width: $width, height: $height, fps: $fps, format: $format"
+
+        width=$(echo "$width" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        height=$(echo "$height" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        fps=$(echo "$fps" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        format=$(echo "$format" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+
+        if [[ -z "$width" || -z "$height" || -z "$fps" || -z "$format" ]]; then
+            echo "Invalid line: $trimmed_line"
+            continue
+        fi
+
+        if [[ ! "$width" =~ ^[0-9]+$ || $width -lt 1 || $width -gt 65535 ]]; then
+            echo "Invalid width: $width"
+            continue
+        fi
+
+        if [[ ! "$height" =~ ^[0-9]+$ || $height -lt 1 || $height -gt 65535 ]]; then
+            echo "Invalid height: $height"
+            continue
+        fi
+
+        if [[ ! "$fps" =~ ^[0-9]+$ || $fps -lt 1 || $fps -gt 400 ]]; then
+            echo "Invalid fps: $fps"
+            continue
+        fi
+
+        format=$(echo "$format" | tr '[:upper:]' '[:lower:]')
+        format=(${format//|/ })
+
+        for one_format in "${format[@]}"; do
+            one_format=$(echo "$one_format" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+            resolution_format="${width}_${one_format}"
+            count=${resolution_format_count[$resolution_format]}
+
+            is_use_height=0
+            if [ -z "$count" ]; then
+                resolution_format_count[$resolution_format]=1
+            else
+                resolution_format="${height}_${one_format}"
+                count=${resolution_format_count[$resolution_format]}
+
+                if [ -z "$count" ]; then
+                    resolution_format_count[$resolution_format]=1
+                else
+                    echo "Too many format for resolution: $width x $height @ $fps $one_format"
+                    continue
+                fi
+                is_use_height=1
+            fi
+
+            echo "Deal with resolution: $width x $height @ $fps $one_format"
+            case "$one_format" in
+                "yuyv")
+                    configure_uvc_resolution_fps_yuyv $width $height $fps $uvc_yuyv_dir $is_use_height
+                    is_had_yuyv=1
+                    ;;
+                "mjpeg")
+                    configure_uvc_resolution_fps_mjpeg $width $height $fps $uvc_mjpeg_dir $is_use_height
+                    is_had_mjpeg=1
+                    ;;
+                *)  # default
+                    echo "Invalid format: $one_format"
+                    ;;
+            esac
+        done
+    done
+
+    # Only create soft link if had config
+    if [ $is_had_yuyv -eq 1 ]; then
+        ln -s ${uvc_yuyv_dir} ${uvc_streaming_dir}/header/h/u
+    fi
+
+    if [ $is_had_mjpeg -eq 1 ]; then
+        ln -s ${uvc_mjpeg_dir} ${uvc_streaming_dir}/header/h/m
+    fi
+}
+
 bind_functions()
 {
-	USB_FUNCTIONS_CNT=1
-	test $UAC1_EN = on && syslink_function uac1.gs0
-	test $UAC2_EN = on && syslink_function uac2.gs0
+    USB_FUNCTIONS_CNT=1
+    test $UAC1_EN = on && syslink_function uac1.gs0
+    test $UAC2_EN = on && syslink_function uac2.gs0
 
-	if [ $UVC_EN = on ];then
-		mkdir ${UVC_CONTROL_DIR}/header/h
-		ln -s ${UVC_CONTROL_DIR}/header/h ${UVC_CONTROL_DIR}/class/fs/h
-		ln -s ${UVC_CONTROL_DIR}/header/h ${UVC_CONTROL_DIR}/class/ss/h
+    if [ $UVC_EN = on ];then
+        mkdir ${UVC_CONTROL_DIR}/header/h
+        ln -s ${UVC_CONTROL_DIR}/header/h ${UVC_CONTROL_DIR}/class/fs/h
+        ln -s ${UVC_CONTROL_DIR}/header/h ${UVC_CONTROL_DIR}/class/ss/h
 
-		##YUYV support config
-		mkdir ${UVC_U_DIR}
+        mkdir ${UVC_STREAMING_DIR}/header/h
+        UVC_NORMAL_CONFIG_FILE=/etc/sunplus/vision/conf/uvc_pipeline_router.lua
+        if [ -f "$UVC_NORMAL_CONFIG_FILE" ]; then
+            deal_uvc_config_file $UVC_NORMAL_CONFIG_FILE
+        else
+            ##YUYV support config
+            mkdir ${UVC_U_DIR}
 		configure_uvc_resolution_yuyv 640 480 ${UVC_U_DIR}
 		configure_uvc_resolution_yuyv 1280 720 ${UVC_U_DIR}
 		configure_uvc_resolution_yuyv  1920 1080 ${UVC_U_DIR}
 		configure_uvc_resolution_yuyv_3840  3840  1080 ${UVC_U_DIR}
 		configure_uvc_resolution_yuyv_3840_H  3840  1080 ${UVC_U_DIR}
 
-		##mjpeg support config
-		mkdir ${UVC_M_DIR}
-		configure_uvc_resolution_mjpeg 640 480 ${UVC_M_DIR}
-		configure_uvc_resolution_mjpeg 1280 720 ${UVC_M_DIR}
-		configure_uvc_resolution_mjpeg 1920 1080 ${UVC_M_DIR}
-		configure_uvc_resolution_mjpeg_3840 3840 1080 ${UVC_M_DIR}
-		#configure_uvc_resolution_mjpeg 2560 1440
-		#configure_uvc_resolution_mjpeg 2592 1944
+	    ##mjpeg support config
+	    mkdir ${UVC_M_DIR}
+	    configure_uvc_resolution_mjpeg 640 480 ${UVC_M_DIR}
+	    configure_uvc_resolution_mjpeg 1280 720 ${UVC_M_DIR}
+	    configure_uvc_resolution_mjpeg 1920 1080 ${UVC_M_DIR}
+	    configure_uvc_resolution_mjpeg_3840 3840 1080 ${UVC_M_DIR}
+	    #configure_uvc_resolution_mjpeg 2560 1440
+	    #configure_uvc_resolution_mjpeg 2592 1944
 
-		## h.264 support config
-		#mkdir ${UVC_F_DIR}
-		#configure_uvc_resolution_h264 640 480
-		#configure_uvc_resolution_h264 1280 720
-		#configure_uvc_resolution_h264 1920 1080
+	    ## h.264 support config
+	    #mkdir ${UVC_F_DIR}
+	    #configure_uvc_resolution_h264 640 480
+	    #configure_uvc_resolution_h264 1280 720
+	    #configure_uvc_resolution_h264 1920 1080
 
-		mkdir ${UVC_STREAMING_DIR}/header/h
-		ln -s ${UVC_U_DIR} ${UVC_STREAMING_DIR}/header/h/u
-		ln -s ${UVC_M_DIR} ${UVC_STREAMING_DIR}/header/h/m
-		ln -s ${UVC_STREAMING_DIR}/header/h ${UVC_STREAMING_DIR}/class/fs/h
-		ln -s ${UVC_STREAMING_DIR}/header/h ${UVC_STREAMING_DIR}/class/hs/h
-		ln -s ${UVC_STREAMING_DIR}/header/h ${UVC_STREAMING_DIR}/class/ss/h
+            mkdir ${UVC_STREAMING_DIR}/header/h
+            ln -s ${UVC_U_DIR} ${UVC_STREAMING_DIR}/header/h/u
+            ln -s ${UVC_M_DIR} ${UVC_STREAMING_DIR}/header/h/m
+        fi
 
-		if [ $UVC2_EN = on ];then
-			echo 2048 > ${UVC_DIR}/streaming_maxpacket
-		else
-			echo 3072 > ${UVC_DIR}/streaming_maxpacket
-		fi
+        ln -s ${UVC_STREAMING_DIR}/header/h ${UVC_STREAMING_DIR}/class/fs/h
+        ln -s ${UVC_STREAMING_DIR}/header/h ${UVC_STREAMING_DIR}/class/hs/h
+        ln -s ${UVC_STREAMING_DIR}/header/h ${UVC_STREAMING_DIR}/class/ss/h
 
-		echo 15 > ${UVC_DIR}/streaming_maxburst
-		echo 0 > ${UVC_DIR}/streaming_interval
+        if [ $UVC2_EN = on ];then
+            echo 2048 > ${UVC_DIR}/streaming_maxpacket
+        else
+            echo 3072 > ${UVC_DIR}/streaming_maxpacket
+        fi
 
-		if [[ $UVC_BULK_MODE_EN = on ]];then
-			echo 1 > ${UVC_DIR}/streaming_bulk
-		fi
+        echo 15 > ${UVC_DIR}/streaming_maxburst
+        echo 0 > ${UVC_DIR}/streaming_interval
 
-		syslink_function uvc.gs6
-	fi
+        if [[ $UVC_BULK_MODE_EN = on ]];then
+            echo 1 > ${UVC_DIR}/streaming_bulk
+        fi
 
-	if [ $UVC2_EN = on ];then
-		mkdir ${UVC2_CONTROL_DIR}/header/h
-		ln -s ${UVC2_CONTROL_DIR}/header/h ${UVC2_CONTROL_DIR}/class/fs/h
-		ln -s ${UVC2_CONTROL_DIR}/header/h ${UVC2_CONTROL_DIR}/class/ss/h
+        syslink_function uvc.gs6
+    fi
 
-		##YUYV support config
-		mkdir ${UVC2_U_DIR}
-		configure_uvc_resolution_yuyv 640 480 ${UVC2_U_DIR}
-		configure_uvc_resolution_yuyv 1280 720 ${UVC2_U_DIR}
-		configure_uvc_resolution_yuyv 1920 1080 ${UVC2_U_DIR}
+    if [ $UVC2_EN = on ];then
+        mkdir ${UVC2_CONTROL_DIR}/header/h
+        ln -s ${UVC2_CONTROL_DIR}/header/h ${UVC2_CONTROL_DIR}/class/fs/h
+        ln -s ${UVC2_CONTROL_DIR}/header/h ${UVC2_CONTROL_DIR}/class/ss/h
 
-		##mjpeg support config
-		mkdir ${UVC2_M_DIR}
-		configure_uvc_resolution_mjpeg 640 480 ${UVC2_M_DIR}
-		configure_uvc_resolution_mjpeg 1280 720 ${UVC2_M_DIR}
-		configure_uvc_resolution_mjpeg 1920 1080 ${UVC2_M_DIR}
-		#configure_uvc_resolution_mjpeg 2560 1440
-		#configure_uvc_resolution_mjpeg 2592 1944
+        mkdir ${UVC2_STREAMING_DIR}/header/h
+        UVC_DEPTHL_CONFIG_FILE=/etc/sunplus/uvc/depth.conf
+        if [ -f "$UVC_DEPTHL_CONFIG_FILE" ]; then
+            deal_uvc_config_file $UVC_DEPTHL_CONFIG_FILE 2
+        else
+            ##YUYV support config
+            mkdir ${UVC2_U_DIR}
+            configure_uvc_resolution_yuyv 640 480 ${UVC2_U_DIR}
+            configure_uvc_resolution_yuyv 1280 720 ${UVC2_U_DIR}
+            configure_uvc_resolution_yuyv 1920 1080 ${UVC2_U_DIR}
 
-		## h.264 support config
-		#configure_uvc_resolution_h264 640 480
-		#configure_uvc_resolution_h264 1280 720
-		#configure_uvc_resolution_h264 1920 1080
+            ##mjpeg support config
+            mkdir ${UVC2_M_DIR}
+            configure_uvc_resolution_mjpeg 640 480 ${UVC2_M_DIR}
+            configure_uvc_resolution_mjpeg 1280 720 ${UVC2_M_DIR}
+            configure_uvc_resolution_mjpeg 1920 1080 ${UVC2_M_DIR}
+	    #configure_uvc_resolution_mjpeg 2560 1440
+	    #configure_uvc_resolution_mjpeg 2592 1944
 
-		mkdir ${UVC2_STREAMING_DIR}/header/h
-		ln -s ${UVC2_U_DIR} ${UVC2_STREAMING_DIR}/header/h/u
-		ln -s ${UVC2_M_DIR} ${UVC2_STREAMING_DIR}/header/h/m
-		ln -s ${UVC2_STREAMING_DIR}/header/h ${UVC2_STREAMING_DIR}/class/fs/h
-		ln -s ${UVC2_STREAMING_DIR}/header/h ${UVC2_STREAMING_DIR}/class/hs/h
-		ln -s ${UVC2_STREAMING_DIR}/header/h ${UVC2_STREAMING_DIR}/class/ss/h
+	    ## h.264 support config
+	    #configure_uvc_resolution_h264 640 480
+	    #configure_uvc_resolution_h264 1280 720
+	    #configure_uvc_resolution_h264 1920 1080
 
-		echo  0 > ${UVC2_DIR}/streaming_interval
-		echo  6 > ${UVC2_DIR}/streaming_maxburst
-		echo 2048 > ${UVC2_DIR}/streaming_maxpacket
+            mkdir ${UVC2_STREAMING_DIR}/header/h
+            ln -s ${UVC2_U_DIR} ${UVC2_STREAMING_DIR}/header/h/u
+            ln -s ${UVC2_M_DIR} ${UVC2_STREAMING_DIR}/header/h/m
+        fi
 
-		if [[ $UVC_BULK_MODE_EN = on ]];then
-			echo 1 > ${UVC2_DIR}/streaming_bulk
-		fi
+        ln -s ${UVC2_STREAMING_DIR}/header/h ${UVC2_STREAMING_DIR}/class/fs/h
+        ln -s ${UVC2_STREAMING_DIR}/header/h ${UVC2_STREAMING_DIR}/class/hs/h
+        ln -s ${UVC2_STREAMING_DIR}/header/h ${UVC2_STREAMING_DIR}/class/ss/h
 
-		syslink_function uvc.gs7
-	fi
+        echo  0 > ${UVC2_DIR}/streaming_interval
+        echo  6 > ${UVC2_DIR}/streaming_maxburst
+        echo 2048 > ${UVC2_DIR}/streaming_maxpacket
 
-	test $MTP_EN = on && syslink_function mtp.gs0
-	test $NTB_EN = on && syslink_function ffs.ntb
-	test $ADB_EN = on && syslink_function ffs.adb
-	test $ACM_EN = on && syslink_function acm.gs6
-	test $RNDIS_EN = on && syslink_function rndis.gs0
+        if [[ $UVC_BULK_MODE_EN = on ]];then
+            echo 1 > ${UVC2_DIR}/streaming_bulk
+        fi
 
-	if [ $HID_EN = on ]; then
-		setup_hid_imu
-	fi
+        syslink_function uvc.gs7
+    fi
 
-	if [ $UMS_EN = on ];then
-		echo ${UMS_RO} > ${USB_FUNCTIONS_DIR}/mass_storage.0/lun.0/ro
-		if [ "$UMS_BLOCK_SIZE" != "0" -a ! -e ${UMS_BLOCK} ]; then
-			dd if=/dev/zero of=${UMS_BLOCK} bs=1M count=${UMS_BLOCK_SIZE}
-			mkfs.${UMS_BLOCK_TYPE} ${UMS_BLOCK}
-			test $? && echo "Warning: failed to mkfs.${UMS_BLOCK_TYPE} ${UMS_BLOCK}"
-		fi
-		mkdir /mnt/ums -p
-		if [[ $UMS_BLOCK_AUTO_MOUNT = on ]];then
-			mount ${UMS_BLOCK} /mnt/ums
-		else
-			if [[  -n "$UMS_LUN_FILE"  &&  -e "$UMS_LUN_FILE"  ]]; then
-				echo ${UMS_LUN_FILE} > ${USB_FUNCTIONS_DIR}/mass_storage.0/lun.0/file
-				echo "${UMS_LUN_FILE} used as lun file"
-			else
-				echo ${UMS_LUN_DEFAULT_FILE} > ${USB_FUNCTIONS_DIR}/mass_storage.0/lun.0/file
-				echo "${UMS_LUN_DEFAULT_FILE} used as lun file"
-			fi
-		fi
-		syslink_function mass_storage.0
-	fi
+    test $MTP_EN = on && syslink_function mtp.gs0
+    test $NTB_EN = on && syslink_function ffs.ntb
+    test $ADB_EN = on && syslink_function ffs.adb
+    test $ACM_EN = on && syslink_function acm.gs6
+    test $RNDIS_EN = on && syslink_function rndis.gs0
 
-	echo ${CONFIG_STRING} > ${USB_CONFIGS_DIR}/strings/${USB_ATTRIBUTE}/configuration
+    if [ $HID_EN = on ]; then
+        setup_hid_imu
+    fi
+
+    if [ $UMS_EN = on ];then
+        echo ${UMS_RO} > ${USB_FUNCTIONS_DIR}/mass_storage.0/lun.0/ro
+        if [ "$UMS_BLOCK_SIZE" != "0" -a ! -e ${UMS_BLOCK} ]; then
+            dd if=/dev/zero of=${UMS_BLOCK} bs=1M count=${UMS_BLOCK_SIZE}
+            mkfs.${UMS_BLOCK_TYPE} ${UMS_BLOCK}
+            test $? && echo "Warning: failed to mkfs.${UMS_BLOCK_TYPE} ${UMS_BLOCK}"
+        fi
+        mkdir /mnt/ums -p
+        if [[ $UMS_BLOCK_AUTO_MOUNT = on ]];then
+            mount ${UMS_BLOCK} /mnt/ums
+        else
+            if [[  -n "$UMS_LUN_FILE"  &&  -e "$UMS_LUN_FILE"  ]]; then
+                echo ${UMS_LUN_FILE} > ${USB_FUNCTIONS_DIR}/mass_storage.0/lun.0/file
+                echo "${UMS_LUN_FILE} used as lun file"
+            else
+                echo ${UMS_LUN_DEFAULT_FILE} > ${USB_FUNCTIONS_DIR}/mass_storage.0/lun.0/file
+                echo "${UMS_LUN_DEFAULT_FILE} used as lun file"
+            fi
+        fi
+        syslink_function mass_storage.0
+    fi
+
+    echo ${CONFIG_STRING} > ${USB_CONFIGS_DIR}/strings/${USB_ATTRIBUTE}/configuration
 }
 
 run_binary()
@@ -648,6 +860,15 @@ uvc_stop(){
 	echo "uvc-gadget stop"
 }
 
+vision_server_start() {
+	nohup 3dvision_server --uvc &
+}
+
+vision_server_stop() {
+	ps aux | grep 3dvision_server | grep -v grep | awk '{print $2}' | xargs -i kill -9 {}
+	echo "3dvision_server stop"
+}
+
 usb_device_start()
 {
 	#DIR=$(cd `dirname $0`; pwd)
@@ -688,6 +909,7 @@ case "$1" in
 start)
 	#common_start
 	usb_device_start
+	#vision_server_start
 	uvc_start
 
 	if [ $GADGET_DEVICE = usb2 ];then
@@ -696,6 +918,7 @@ start)
         fi
 	;;
 stop)
+	#vision_server_stop
 	uvc_stop
 #	usb_device_stop
 	;;
