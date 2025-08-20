@@ -7,9 +7,12 @@ UVC_EN=off
 UMS_BLOCK=""
 UMS_LUN_FILE=""
 GADGET_DEVICE=usb3
-PATH_TO_UMS_FILE=/sys/kernel/config/usb_gadget/vicoretek/functions/mass_storage.0/lun.0/file
+
+. /etc/usb_gadget.conf
+
+PATH_TO_UMS_FILE=$USB_GADGET_DIR/functions/mass_storage.0/lun.0/file
 PATH_TO_USB_CONFIG=/tmp/.usb_config
-PATH_TO_UDC=/sys/kernel/config/usb_gadget/vicoretek/UDC
+PATH_TO_UDC=$USB_GADGET_DIR/UDC
 USB_CONFIG_FILE=/etc/.usb_config
 
 if [ -f $USB_CONFIG_FILE ]; then
@@ -60,7 +63,7 @@ find_ums_config()
 
 find_spec_function()
 {
-	functions=`cat /sys/kernel/config/usb_gadget/vicoretek/configs/b.1/strings/0x409/configuration`
+	functions=`cat $USB_GADGET_DIR/configs/b.1/strings/0x409/configuration`
 
 	functions=${functions}_over_
 	tmp=`echo $functions | awk -F "_" '{print $1}'`
@@ -85,8 +88,8 @@ if [ $GADGET_DEVICE = usb2 ]; then
     UDC="f8102800.usb"
 fi
 
-if [ -e /sys/kernel/config/usb_gadget/vicoretek/UDC  ]; then
-	echo $UDC > "/sys/kernel/config/usb_gadget/vicoretek/UDC"
+if [ -e $USB_GADGET_DIR/UDC  ]; then
+	echo $UDC > "$USB_GADGET_DIR/UDC"
 fi
 if [ $GADGET_DEVICE = usb2 ]; then
 	echo d > /sys/bus/platform/devices/f8102800.usb/udc_ctrl

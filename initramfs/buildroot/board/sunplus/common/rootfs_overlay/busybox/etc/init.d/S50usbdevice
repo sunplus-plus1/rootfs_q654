@@ -3,8 +3,6 @@
 # setup configfs for adbd, usb mass storage and MTP....
 # For kernel v4.4 usb configfs
 #
-# Load default env variables from profiles
-. /etc/profile
 
 UMS_EN=off
 ADB_EN=off
@@ -19,11 +17,12 @@ RNDIS_EN=off
 HID_EN=off
 
 USB_ATTRIBUTE=0x409
-USB_GROUP=vicoretek
 USB_SKELETON=b.1
 
+. /etc/usb_gadget.conf
+
 CONFIGFS_DIR=/sys/kernel/config
-USB_CONFIGFS_DIR=${CONFIGFS_DIR}/usb_gadget/${USB_GROUP}
+USB_CONFIGFS_DIR=${USB_GADGET_DIR}
 USB_STRINGS_DIR=${USB_CONFIGFS_DIR}/strings/${USB_ATTRIBUTE}
 USB_FUNCTIONS_DIR=${USB_CONFIGFS_DIR}/functions
 USB_CONFIGS_DIR=${USB_CONFIGFS_DIR}/configs/${USB_SKELETON}
@@ -55,6 +54,10 @@ UVC2_CONTROL_DIR=${UVC2_DIR}/control/
 UVC2_U_DIR=${UVC2_STREAMING_DIR}/uncompressed/u/
 UVC2_M_DIR=${UVC2_STREAMING_DIR}/mjpeg/m/
 
+ALL_UVC_FPS_INFO=()
+
+MKDIR='mkdir -p'
+
 test_write()
 {
 	test -e $2 && echo $1 > $2
@@ -62,47 +65,50 @@ test_write()
 
 function_init()
 {
-	mkdir ${USB_FUNCTIONS_DIR}/uac1.gs0
+	${MKDIR} ${USB_FUNCTIONS_DIR}/uac1.gs0
 	test_write 1 ${USB_FUNCTIONS_DIR}/uac1.gs0/c_feature_unit
 	test_write 1 ${USB_FUNCTIONS_DIR}/uac1.gs0/p_feature_unit
-	mkdir ${USB_FUNCTIONS_DIR}/uac2.gs0
+	${MKDIR} ${USB_FUNCTIONS_DIR}/uac2.gs0
 	test_write 1 ${USB_FUNCTIONS_DIR}/uac2.gs0/c_feature_unit
 	test_write 1 ${USB_FUNCTIONS_DIR}/uac2.gs0/p_feature_unit
-	mkdir ${USB_FUNCTIONS_DIR}/ffs.adb
-	mkdir ${USB_FUNCTIONS_DIR}/ffs.ntb
-	#mkdir ${USB_FUNCTIONS_DIR}/mtp.gs0
-	mkdir ${USB_FUNCTIONS_DIR}/rndis.gs0
+	${MKDIR} ${USB_FUNCTIONS_DIR}/ffs.adb
+	${MKDIR} ${USB_FUNCTIONS_DIR}/ffs.ntb
+	#$(MKDIR) ${USB_FUNCTIONS_DIR}/mtp.gs0
+	${MKDIR} ${USB_FUNCTIONS_DIR}/rndis.gs0
 	#write /config/usb_gadget/g1/functions/rndis.gs0/wceis 1
-	mkdir ${USB_FUNCTIONS_DIR}/acm.gs6
-	mkdir ${USB_FUNCTIONS_DIR}/mass_storage.0
-	mkdir ${USB_FUNCTIONS_DIR}/uvc.gs6
-	mkdir ${USB_FUNCTIONS_DIR}/uvc.gs7
+	${MKDIR} ${USB_FUNCTIONS_DIR}/acm.gs6
+	${MKDIR} ${USB_FUNCTIONS_DIR}/mass_storage.0
+	${MKDIR} ${USB_FUNCTIONS_DIR}/uvc.gs6
+	${MKDIR} ${USB_FUNCTIONS_DIR}/uvc.gs7
+	if [ -n "$USB_RNDIS_DEV_ADDR" ]; then
+		echo "$USB_RNDIS_DEV_ADDR" > ${USB_FUNCTIONS_DIR}/rndis.gs0/dev_addr
+	fi
 }
 
 configfs_init()
 {
 	echo "Debug: configfs_init" >/dev/null 2>&1
-	mkdir /dev/usb-ffs
+	${MKDIR} /dev/usb-ffs
 
 	mount -t configfs none ${CONFIGFS_DIR}
-	mkdir ${USB_CONFIGFS_DIR} -m 0770
-	echo 0x37a4 > ${USB_CONFIGFS_DIR}/idVendor
+	${MKDIR} ${USB_CONFIGFS_DIR} -m 0770
+	echo 0x04fc > ${USB_CONFIGFS_DIR}/idVendor
 	echo 0x0310 > ${USB_CONFIGFS_DIR}/bcdDevice
 	echo 0x0200 > ${USB_CONFIGFS_DIR}/bcdUSB
-	mkdir ${USB_STRINGS_DIR}   -m 0770
+	${MKDIR} ${USB_STRINGS_DIR}   -m 0770
 	MMC_SERIAL=$(cat /sys/class/mmc_host/mmc0/mmc0:0001/serial)
         SERIAL=${MMC_SERIAL:2}
 	if [ -z $SERIAL ];then
 		SERIAL=0123456789ABCDEF
 	fi
 	echo $SERIAL > ${USB_STRINGS_DIR}/serialnumber
-	echo "Vicore"  > ${USB_STRINGS_DIR}/manufacturer
-	echo "Vicore device"  > ${USB_STRINGS_DIR}/product
+	echo "Sunplus"  > ${USB_STRINGS_DIR}/manufacturer
+	echo "FunctionFS Gadget"  > ${USB_STRINGS_DIR}/product
 
 	function_init
 
-	mkdir ${USB_CONFIGS_DIR}  -m 0770
-	mkdir ${USB_CONFIGS_DIR}/strings/${USB_ATTRIBUTE}  -m 0770
+	${MKDIR} ${USB_CONFIGS_DIR}  -m 0770
+	${MKDIR} ${USB_CONFIGS_DIR}/strings/${USB_ATTRIBUTE}  -m 0770
 
 	echo 0x1 > ${USB_CONFIGFS_DIR}/os_desc/b_vendor_code
 	echo "MSFT100" > ${USB_CONFIGFS_DIR}/os_desc/qw_sign
@@ -222,22 +228,22 @@ parameter_init()
 
 	case "$CONFIG_STRING" in
 		ums)
-			PID=0x0001
+			PID=0xF001
 			;;
 		adb)
-			PID=0x4E21
+			PID=0xF002
 			;;
 		rndis)
-			PID=0x4e13
+			PID=0xF003
 			;;
 		ums_adb | adb_ums)
-			PID=0x0100
+			PID=0xF004
 			;;
 		rndis_adb | adb_rndis)
-			PID=0x4E24
+			PID=0xF005
 			;;
 		*)
-			PID=0x4E24
+			PID=0xF000
 	esac
 }
 
@@ -252,13 +258,13 @@ use_os_desc()
 pre_run_binary()
 {
 	if [ $ADB_EN = on ];then
-		mkdir /dev/usb-ffs/adb -m 0770
+		${MKDIR} /dev/usb-ffs/adb -m 0770
 		mount -o uid=2000,gid=2000 -t functionfs adb /dev/usb-ffs/adb
 		start-stop-daemon --start --quiet --background --exec /usr/bin/adbd
 	fi
 
 	if [ $NTB_EN = on ];then
-		mkdir /dev/usb-ffs/ntb -m 0770
+		${MKDIR} /dev/usb-ffs/ntb -m 0770
 		mount -o uid=2000,gid=2000 -t functionfs ntb /dev/usb-ffs/ntb
 		# Not start app here
 	fi
@@ -272,7 +278,7 @@ configure_uvc_resolution_yuyv()
 	H=$2
 	DIR=$3/${W}p/
 	#echo  0 > ${UVC_U_DIR}/bDefaultFrameIndex
-	mkdir ${DIR}
+	${MKDIR} ${DIR}
 	echo $W > ${DIR}/wWidth
 	echo $H > ${DIR}/wHeight
 	echo 333333 > ${DIR}/dwDefaultFrameInterval
@@ -293,7 +299,7 @@ configure_uvc_resolution_yuyv_3840()
 	H=$2
 	DIR=$3/${W}p/
 	#echo  0 > ${UVC_U_DIR}/bDefaultFrameIndex
-	mkdir ${DIR}
+	${MKDIR} ${DIR}
 	echo $W > ${DIR}/wWidth
 	echo $H > ${DIR}/wHeight
 	echo 333333 > ${DIR}/dwDefaultFrameInterval
@@ -312,7 +318,7 @@ configure_uvc_resolution_yuyv_3840_H()
 	H=$2
 	DIR=$3/${H}p/
 	#echo  0 > ${UVC_U_DIR}/bDefaultFrameIndex
-	mkdir ${DIR}
+	${MKDIR} ${DIR}
 	echo $W > ${DIR}/wWidth
 	echo $H > ${DIR}/wHeight
 	echo 100000 > ${DIR}/dwDefaultFrameInterval
@@ -329,7 +335,7 @@ configure_uvc_resolution_mjpeg()
 	W=$1
 	H=$2
 	DIR=$3/${H}p/
-	mkdir ${DIR}
+	${MKDIR} ${DIR}
 	echo $W > ${DIR}/wWidth
 	echo $H > ${DIR}/wHeight
 	echo 333333 > ${DIR}/dwDefaultFrameInterval
@@ -349,7 +355,7 @@ configure_uvc_resolution_mjpeg_3840()
 	W=$1
 	H=$2
 	DIR=$3/${W}p/
-	mkdir ${DIR}
+	${MKDIR} ${DIR}
 	echo $W > ${DIR}/wWidth
 	echo $H > ${DIR}/wHeight
 	echo 333333 > ${DIR}/dwDefaultFrameInterval
@@ -369,7 +375,7 @@ configure_uvc_resolution_h264()
 	W=$1
 	H=$2
 	DIR=$3/${H}p/
-	mkdir ${DIR}
+	${MKDIR} ${DIR}
 	echo $W > ${DIR}/wWidth
 	echo $H > ${DIR}/wHeight
 	echo 333333 > ${DIR}/dwDefaultFrameInterval
@@ -395,7 +401,7 @@ syslink_function()
 function setup_hid_imu()
 {
     hid_imu_path="hid.imu"
-    mkdir ${USB_FUNCTIONS_DIR}/${hid_imu_path}
+    ${MKDIR} ${USB_FUNCTIONS_DIR}/${hid_imu_path}
     for file in $(ls /etc/sunplus/hid_desc/*)
     do
 	    echo $file
@@ -427,7 +433,7 @@ configure_uvc_resolution_fps_yuyv()
     fi
     echo "DIR: $DIR"
 
-    mkdir -p ${DIR}
+    ${MKDIR} ${DIR}
     echo $W > ${DIR}/wWidth
     echo $H > ${DIR}/wHeight
     echo $F > ${DIR}/dwDefaultFrameInterval
@@ -454,7 +460,7 @@ configure_uvc_resolution_fps_mjpeg()
     fi
     echo "DIR: $DIR"
 
-    mkdir -p ${DIR}
+    ${MKDIR} ${DIR}
     echo $W > ${DIR}/wWidth
     echo $H > ${DIR}/wHeight
     echo $F > ${DIR}/dwDefaultFrameInterval
@@ -513,8 +519,8 @@ function deal_uvc_config_file()
         uvc_streaming_dir=${UVC2_STREAMING_DIR}
     fi
 
-    mkdir -p ${uvc_yuyv_dir}
-    mkdir -p ${uvc_mjpeg_dir}
+    ${MKDIR} ${uvc_yuyv_dir}
+    ${MKDIR} ${uvc_mjpeg_dir}
 
     is_had_yuyv=0
     is_had_mjpeg=0
@@ -619,17 +625,17 @@ bind_functions()
     test $UAC2_EN = on && syslink_function uac2.gs0
 
     if [ $UVC_EN = on ];then
-        mkdir ${UVC_CONTROL_DIR}/header/h
+        ${MKDIR} ${UVC_CONTROL_DIR}/header/h
         ln -s ${UVC_CONTROL_DIR}/header/h ${UVC_CONTROL_DIR}/class/fs/h
         ln -s ${UVC_CONTROL_DIR}/header/h ${UVC_CONTROL_DIR}/class/ss/h
 
-        mkdir ${UVC_STREAMING_DIR}/header/h
-        UVC_NORMAL_CONFIG_FILE=/etc/sunplus/vision/conf/uvc_pipeline_router.lua
+        ${MKDIR} ${UVC_STREAMING_DIR}/header/h
+        UVC_NORMAL_CONFIG_FILE=$USB_UVC_NORMAL_CONFIG_DIR/uvc_pipeline_router.lua
         if [ -f "$UVC_NORMAL_CONFIG_FILE" ]; then
             deal_uvc_config_file $UVC_NORMAL_CONFIG_FILE
         else
             ##YUYV support config
-            mkdir ${UVC_U_DIR}
+            ${MKDIR} ${UVC_U_DIR}
 		configure_uvc_resolution_yuyv 640 480 ${UVC_U_DIR}
 		configure_uvc_resolution_yuyv 1280 720 ${UVC_U_DIR}
 		configure_uvc_resolution_yuyv  1920 1080 ${UVC_U_DIR}
@@ -637,7 +643,7 @@ bind_functions()
 		configure_uvc_resolution_yuyv_3840_H  3840  1080 ${UVC_U_DIR}
 
 	    ##mjpeg support config
-	    mkdir ${UVC_M_DIR}
+	    ${MKDIR} ${UVC_M_DIR}
 	    configure_uvc_resolution_mjpeg 640 480 ${UVC_M_DIR}
 	    configure_uvc_resolution_mjpeg 1280 720 ${UVC_M_DIR}
 	    configure_uvc_resolution_mjpeg 1920 1080 ${UVC_M_DIR}
@@ -646,12 +652,12 @@ bind_functions()
 	    #configure_uvc_resolution_mjpeg 2592 1944
 
 	    ## h.264 support config
-	    #mkdir ${UVC_F_DIR}
+	    #$(MKDIR) ${UVC_F_DIR}
 	    #configure_uvc_resolution_h264 640 480
 	    #configure_uvc_resolution_h264 1280 720
 	    #configure_uvc_resolution_h264 1920 1080
 
-            mkdir ${UVC_STREAMING_DIR}/header/h
+            ${MKDIR} ${UVC_STREAMING_DIR}/header/h
             ln -s ${UVC_U_DIR} ${UVC_STREAMING_DIR}/header/h/u
             ln -s ${UVC_M_DIR} ${UVC_STREAMING_DIR}/header/h/m
         fi
@@ -677,23 +683,23 @@ bind_functions()
     fi
 
     if [ $UVC2_EN = on ];then
-        mkdir ${UVC2_CONTROL_DIR}/header/h
+        ${MKDIR} ${UVC2_CONTROL_DIR}/header/h
         ln -s ${UVC2_CONTROL_DIR}/header/h ${UVC2_CONTROL_DIR}/class/fs/h
         ln -s ${UVC2_CONTROL_DIR}/header/h ${UVC2_CONTROL_DIR}/class/ss/h
 
-        mkdir ${UVC2_STREAMING_DIR}/header/h
-        UVC_DEPTHL_CONFIG_FILE=/etc/sunplus/uvc/depth.conf
+        ${MKDIR} ${UVC2_STREAMING_DIR}/header/h
+        UVC_DEPTHL_CONFIG_FILE=$USB_UVC_DEPTHL_CONFIG_DIR/depth.conf
         if [ -f "$UVC_DEPTHL_CONFIG_FILE" ]; then
             deal_uvc_config_file $UVC_DEPTHL_CONFIG_FILE 2
         else
             ##YUYV support config
-            mkdir ${UVC2_U_DIR}
+            ${MKDIR} ${UVC2_U_DIR}
             configure_uvc_resolution_yuyv 640 480 ${UVC2_U_DIR}
             configure_uvc_resolution_yuyv 1280 720 ${UVC2_U_DIR}
             configure_uvc_resolution_yuyv 1920 1080 ${UVC2_U_DIR}
 
             ##mjpeg support config
-            mkdir ${UVC2_M_DIR}
+            ${MKDIR} ${UVC2_M_DIR}
             configure_uvc_resolution_mjpeg 640 480 ${UVC2_M_DIR}
             configure_uvc_resolution_mjpeg 1280 720 ${UVC2_M_DIR}
             configure_uvc_resolution_mjpeg 1920 1080 ${UVC2_M_DIR}
@@ -705,7 +711,7 @@ bind_functions()
 	    #configure_uvc_resolution_h264 1280 720
 	    #configure_uvc_resolution_h264 1920 1080
 
-            mkdir ${UVC2_STREAMING_DIR}/header/h
+            ${MKDIR} ${UVC2_STREAMING_DIR}/header/h
             ln -s ${UVC2_U_DIR} ${UVC2_STREAMING_DIR}/header/h/u
             ln -s ${UVC2_M_DIR} ${UVC2_STREAMING_DIR}/header/h/m
         fi
@@ -742,7 +748,7 @@ bind_functions()
             mkfs.${UMS_BLOCK_TYPE} ${UMS_BLOCK}
             test $? && echo "Warning: failed to mkfs.${UMS_BLOCK_TYPE} ${UMS_BLOCK}"
         fi
-        mkdir /mnt/ums -p
+        ${MKDIR} /mnt/ums
         if [[ $UMS_BLOCK_AUTO_MOUNT = on ]];then
             mount ${UMS_BLOCK} /mnt/ums
         else
@@ -767,9 +773,9 @@ run_binary()
 	fi
 
 	#restart network for usb0
-	if [ $RNDIS_EN = on ];then
-		/sbin/ifup usb0
-	fi
+	#if [ $RNDIS_EN = on ];then
+	#	/sbin/ifup usb0
+	#fi
 }
 
 program_kill()
@@ -803,7 +809,7 @@ uvc_start(){
 	UVC_LOG_FILE=/var/log/uvc/gst-source.log
 
 	if [ ! -d ${UVC_LOG_PATH} ]; then
-		mkdir  -p  ${UVC_LOG_PATH}
+		${MKDIR} ${UVC_LOG_PATH}
 	fi
 
 	# check uvc
