@@ -80,8 +80,8 @@ function_init()
 	${MKDIR} ${USB_FUNCTIONS_DIR}/mass_storage.0
 	${MKDIR} ${USB_FUNCTIONS_DIR}/uvc.gs6
 	${MKDIR} ${USB_FUNCTIONS_DIR}/uvc.gs7
-	if [ -n "$USB_RNDIS_DEV_ADDR" ]; then
-		echo "$USB_RNDIS_DEV_ADDR" > ${USB_FUNCTIONS_DIR}/rndis.gs0/dev_addr
+	if [ -n "$USB_ETHERNET_DEV_ADDR" ]; then
+		echo "$USB_ETHERNET_DEV_ADDR" > ${USB_FUNCTIONS_DIR}/rndis.gs0/dev_addr
 	fi
 }
 
