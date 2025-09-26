@@ -6,7 +6,7 @@ ADB_EN=off
 UVC_EN=off
 UMS_BLOCK=""
 UMS_LUN_FILE=""
-GADGET_DEVICE=usb3
+GADGET_DEVICE=$1
 
 . /etc/usb_gadget.conf
 
