@@ -47,7 +47,7 @@ UVC_STREAMING_DIR=${UVC_DIR}/streaming/
 UVC_CONTROL_DIR=${UVC_DIR}/control/
 UVC_U_DIR=${UVC_STREAMING_DIR}/uncompressed/u/
 UVC_M_DIR=${UVC_STREAMING_DIR}/mjpeg/m/
-#UVC_F_DIR=${UVC_STREAMING_DIR}/framebased/f/
+UVC_F_DIR=${UVC_STREAMING_DIR}/framebased/f/
 UVC2_DIR=${USB_FUNCTIONS_DIR}/uvc.gs7/
 UVC2_STREAMING_DIR=${UVC2_DIR}/streaming/
 UVC2_CONTROL_DIR=${UVC2_DIR}/control/
@@ -379,9 +379,8 @@ configure_uvc_resolution_h264()
 	echo $W > ${DIR}/wWidth
 	echo $H > ${DIR}/wHeight
 	echo 333333 > ${DIR}/dwDefaultFrameInterval
-	echo $((W*H*10)) > ${DIR}/dwMinBitRate
-	echo $((W*H*10)) > ${DIR}/dwMaxBitRate
-	#echo $((W*H*2)) > ${DIR}/dwMaxVideoFrameBufferSize
+	echo $((W*H*8)) > ${DIR}/dwMinBitRate
+	echo $((W*H*48)) > ${DIR}/dwMaxBitRate
 	#echo -e "333333\n666666\n1000000\n2000000" > ${DIR}/dwFrameInterval
 	cat <<EOF  > ${DIR}/dwFrameInterval
 333333
@@ -635,31 +634,32 @@ bind_functions()
             deal_uvc_config_file $UVC_NORMAL_CONFIG_FILE
         else
             ##YUYV support config
-            ${MKDIR} ${UVC_U_DIR}
-		configure_uvc_resolution_yuyv 640 480 ${UVC_U_DIR}
-		configure_uvc_resolution_yuyv 1280 720 ${UVC_U_DIR}
-		configure_uvc_resolution_yuyv  1920 1080 ${UVC_U_DIR}
-		configure_uvc_resolution_yuyv_3840  3840  1080 ${UVC_U_DIR}
-		configure_uvc_resolution_yuyv_3840_H  3840  1080 ${UVC_U_DIR}
+            #${MKDIR} ${UVC_U_DIR}
+			#configure_uvc_resolution_yuyv 640 480 ${UVC_U_DIR}
+			#configure_uvc_resolution_yuyv 1280 720 ${UVC_U_DIR}
+			#configure_uvc_resolution_yuyv  1920 1080 ${UVC_U_DIR}
+			#configure_uvc_resolution_yuyv_3840  3840  1080 ${UVC_U_DIR}
+			#configure_uvc_resolution_yuyv_3840_H  3840  1080 ${UVC_U_DIR}
 
-	    ##mjpeg support config
-	    ${MKDIR} ${UVC_M_DIR}
-	    configure_uvc_resolution_mjpeg 640 480 ${UVC_M_DIR}
-	    configure_uvc_resolution_mjpeg 1280 720 ${UVC_M_DIR}
-	    configure_uvc_resolution_mjpeg 1920 1080 ${UVC_M_DIR}
-	    configure_uvc_resolution_mjpeg_3840 3840 1080 ${UVC_M_DIR}
-	    #configure_uvc_resolution_mjpeg 2560 1440
-	    #configure_uvc_resolution_mjpeg 2592 1944
+			##mjpeg support config
+			#${MKDIR} ${UVC_M_DIR}
+			#configure_uvc_resolution_mjpeg 640 480 ${UVC_M_DIR}
+			#configure_uvc_resolution_mjpeg 1280 720 ${UVC_M_DIR}
+			#configure_uvc_resolution_mjpeg 1920 1080 ${UVC_M_DIR}
+			#configure_uvc_resolution_mjpeg_3840 3840 1080 ${UVC_M_DIR}
+			#configure_uvc_resolution_mjpeg 2560 1440
+			#configure_uvc_resolution_mjpeg 2592 1944
 
-	    ## h.264 support config
-	    #$(MKDIR) ${UVC_F_DIR}
-	    #configure_uvc_resolution_h264 640 480
-	    #configure_uvc_resolution_h264 1280 720
-	    #configure_uvc_resolution_h264 1920 1080
+			## h.264 support config
+			${MKDIR} ${UVC_F_DIR}
+			configure_uvc_resolution_h264 640 480 ${UVC_F_DIR}
+			configure_uvc_resolution_h264 1280 720 ${UVC_F_DIR}
+			#configure_uvc_resolution_h264 1920 1080 ${UVC_F_DIR}
 
             ${MKDIR} ${UVC_STREAMING_DIR}/header/h
             ln -s ${UVC_U_DIR} ${UVC_STREAMING_DIR}/header/h/u
             ln -s ${UVC_M_DIR} ${UVC_STREAMING_DIR}/header/h/m
+			ln -s ${UVC_F_DIR} ${UVC_STREAMING_DIR}/header/h/f
         fi
 
         ln -s ${UVC_STREAMING_DIR}/header/h ${UVC_STREAMING_DIR}/class/fs/h
