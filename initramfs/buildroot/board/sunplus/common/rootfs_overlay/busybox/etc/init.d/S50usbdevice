@@ -634,12 +634,12 @@ bind_functions()
             deal_uvc_config_file $UVC_NORMAL_CONFIG_FILE
         else
             ##YUYV support config
-            #${MKDIR} ${UVC_U_DIR}
-			#configure_uvc_resolution_yuyv 640 480 ${UVC_U_DIR}
-			#configure_uvc_resolution_yuyv 1280 720 ${UVC_U_DIR}
-			#configure_uvc_resolution_yuyv  1920 1080 ${UVC_U_DIR}
-			#configure_uvc_resolution_yuyv_3840  3840  1080 ${UVC_U_DIR}
-			#configure_uvc_resolution_yuyv_3840_H  3840  1080 ${UVC_U_DIR}
+            ${MKDIR} ${UVC_U_DIR}
+			configure_uvc_resolution_yuyv 640 480 ${UVC_U_DIR}
+			configure_uvc_resolution_yuyv 1280 720 ${UVC_U_DIR}
+			configure_uvc_resolution_yuyv  1920 1080 ${UVC_U_DIR}
+			configure_uvc_resolution_yuyv_3840  3840  1080 ${UVC_U_DIR}
+			configure_uvc_resolution_yuyv_3840_H  3840  1080 ${UVC_U_DIR}
 
 			##mjpeg support config
 			#${MKDIR} ${UVC_M_DIR}
