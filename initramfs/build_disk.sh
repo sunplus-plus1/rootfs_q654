@@ -91,12 +91,35 @@ EOF
 
 }
 
+function set_rc_init() {
+
+cat <<EOF > ${DISKOUT}/etc/init.d/rc.init
+#!/bin/sh
+$(echo -e "$1" | sed 's/^[ \t]*//') 
+# umount -l /rom
+# rm -rf /overlay /rom
+EOF
+	chmod +x ${DISKOUT}/etc/init.d/rc.init
+}
+
 function cp_files() {
 
 	cp -R ${DISKZ}lib/firmware/ ${DISKLIB}
 
 	# for overlayfs
-	replace_sbin_init "/lib/systemd/systemd"
+	if [ -f "${DISKOUT}/lib/systemd/systemd" ]; then
+		replace_sbin_init "/lib/systemd/systemd" 
+	else
+		replace_sbin_init "/bin/busybox init"
+		cp ${DISKZ}etc/inittab ${DISKOUT}/etc/
+		cp ${DISKZ}etc/fstab ${DISKOUT}/etc/
+		cp ${DISKZ}sbin/udevtrigger.sh ${DISKOUT}/sbin/
+		cp -R ${DISKZ}etc/init.d/* ${DISKOUT}/etc/init.d/
+		set_rc_init "if [ -f /etc/init.d/rc.resizefs ];then
+			/sbin/resize2fs /dev/mmcblk0p${partition}
+			rm /etc/init.d/rc.resizefs
+			fi"
+	fi
 
 	# resize emmc/sdcard partition
 	resize_partition
@@ -419,17 +442,6 @@ if [ -d extra/ ]; then
 	cp -av extra/* $DISKOUT
 fi
 
-function set_rc_init() {
-
-cat <<EOF > ${DISKOUT}/etc/init.d/rc.init
-#!/bin/sh
-$(echo -e "$1" | sed 's/^[ \t]*//') 
-# umount -l /rom
-# rm -rf /overlay /rom
-EOF
-
-}
-
 if [ "$ARCH" = "arm64" ]; then
 	if [ -d prebuilt/arm64 ]; then
 		cp -av prebuilt/arm64/* $DISKOUT
@@ -455,8 +467,6 @@ if [ "$ARCH" = "arm64" ]; then
 				rm /etc/init.d/rc.resizefs
 				fi"
 		fi
-
-		chmod +x ${DISKOUT}/etc/init.d/rc.init
 	fi
 
 elif [ $V7_BUILD -eq 1 ]; then
